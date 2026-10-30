@@ -1,0 +1,14 @@
+# Game data and FromSoftware/QLOC IP: never committed
+vanilla/**
+!vanilla/manifest.sha256
+vanilla_src/
+dist/
+saves/**
+!saves/ledger.json
+captures/
+
+# Tooling
+.venv/
+__pycache__/
+*.pyc
+tools/bin/
