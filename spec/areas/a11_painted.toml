@@ -1,0 +1,31 @@
+# Painted World of Ariamis (m11_00), W3 round 1 main spec (looks/G2.md section 1, looks/README.md section 4).
+# Views: painted_entrance, painted. Round 1 holds exposure (ev target -0.25..+0.10); the only main-file move is
+# the sun. The blue-green grade is a sourced colour move and lives in a11_painted_signoff.toml.
+area = "a11"
+
+# --- Sun (P9: every live row with 0 < vanilla colA_s <= 60 gets a decision) ------------------------------------
+[[edit]]
+bank = "LightBank"
+rows = [3, 4, 5, 6, 10, 11]
+op = "set"
+fields = { colA_s = 25, colR_s = 238, colG_s = 250 }
+why = "painted_entrance/painted sun class low (~25, radiance 0.095) on the exterior map row 0, the exterior prop rows 3 rope bridge / 4 trees (vanilla 40) / 5 gravestones / 6 unlightmapped buildings (W3 fixer: same snowfield, so no patchwork of sunlit and unlit props; row 6 is exactly the no-lightmap draw type that takes the sun) and character rows 10 (basic) / 11 (shade); cool tint 238/250/255 for the overcast snow sky (G2 sec.1 'low, cool sun', README 4.3 rule 1: rows 10/11 key 170/255/255); snow is excluded by the shader"
+
+[[edit]]
+bank = "LightBank"
+rows = [1, 15, 20]
+op = "set"
+fields = { colA_s = 0 }
+why = "sun off on rows not named for an exterior sun view: 1 indoor (13 pieces, no Water material in the W3 census); 15 dragon-zombie and 20 Priscilla character rows held at 0 until the one-row probe shows which collisions use them (task default); vanilla 50 would otherwise render a 0.435 sun"
+
+[[edit]]
+bank = "LightBank"
+rows = [2]
+op = "set"
+fields = { colA_s = 0 }
+why = "sun off in the underground (vanilla 30). W3 water census: both pieces (m2100B0, m2101B0) carry A11_Water[W], which loses its vanilla c6 specular at 0. USER DECISION (W3 fixer default 0: a kept 30 puts a 0.14 sun on the basement's unlightmapped stone and glass); the alternative is [[sun_keep]]. W4: one-row water A/B before shipping (README 4.3 rule 8)"
+[[sun_keep]]
+slot = 0
+rows = [0]
+why = "Water on this row reads the same c6 light as the sun: keep vanilla colA_s and tint so the water sheen stays vanilla (W3 fixer water census). The sun here runs at the vanilla-derived strength; judge it in W4."
+

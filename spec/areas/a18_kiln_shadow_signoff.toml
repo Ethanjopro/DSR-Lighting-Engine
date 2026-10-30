@@ -1,0 +1,16 @@
+# G5 / a18 SIGN-OFF: optional experiment (README section 6 sign-off gates). Drop this file to remove it on its own.
+# Split from the former a18_kiln_asylum_signoff.toml (W3 fixer), content unchanged.
+# NOTE: ShadowBank 0 is shared by m18_00 and m18_01 (85 objects, 59 characters, 38 collisions), so this moves every
+# Asylum view on ShadowBank 0 as well as the Kiln, not only kiln_entrance.
+area = "a18"
+
+[[edit]]
+bank = "ShadowBank"
+rows = [0]
+op = "mul"
+fields = { endDist = 1.75, fadeBeginDist = 1.75, fadeDist = 1.75 }
+why = """optional (G5 Kiln levers), kiln_entrance ev -0.30..+0.10: the sun fades with the shadow range, which is a 10 m \
+bubble at Kiln/Asylum row 0. Recipe middle of endDist 10 -> 15-20 (17.5), with the fade scaled (README P5). Shared by \
+both maps: moves kiln_entrance AND every Asylum view on ShadowBank 0 (asylum_1 -0.10..+0.02 if live there). \
+shadow_end x2 measured -0.12..+0.02 EV; needs a shimmer check, because perspective shadow maps trade resolution for \
+range."""

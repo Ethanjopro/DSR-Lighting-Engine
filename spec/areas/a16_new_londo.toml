@@ -1,0 +1,26 @@
+# G5 / a16 New Londo Ruins: views new_londo, new_londo_ingward (looks/G5.md, looks/targets.json).
+# Round 1 (drafted before measurement). Target: HOLD VANILLA. DSR's own compensation keeps New Londo readable
+# (DSRRL), and one source prefers DSR's New Londo, so ambient, envDif, fog, ToneMap and ToneCorrect stay vanilla.
+# Sun class: off (a city in a cavern). Only colA_s decisions are made here.
+# Row 0 (colA_s 200: flood water, 108 characters) is spec-only: shader gate S1 gives it no sun with no edit.
+# Row 15 is colA_s 0 in vanilla and needs no decision.
+area = "a16"
+
+[[edit]]
+bank = "LightBank"
+rows = [3, 4, 5, 10, 11, 13]
+op = "set"
+fields = { colA_s = 0 }
+why = """sun off at new_londo / new_londo_ingward (targets sun 'off'): char rows 10/11/13 (outdoor, indoor, boss-room \
+characters) and map rows 3-5 (Four Kings boss room, fog plane, plants). W3 water census: none of rows 3-5 carries \
+a Water material, so under the vanilla shaders this changes nothing visible there. Shared: row 11 also lights \
+place 1201 (the Valley of Drakes transition, a pending guard view); the effect there is sun-only."""
+
+[[sun_keep]]
+slot = 0
+rows = [1, 2]
+why = """flood-water specular carriers (G5 trap 5 / open issue 1: 'map rows 0/1 colA_s stay vanilla until the water/sun \
+carrier is split'); must-not-change: the flood-water sheen. Row 2 joined after the W3 water census (W3 fixer): its \
+pieces m3300B0 and m3700B0 carry A16_Water_pool[We], so a 0 would remove their vanilla c6 specular. Vanilla 20 \
+renders at most radiance 0.058 (row 1: 105 objects; row 2: 7 indoor map pieces, some unlightmapped). Revisit after \
+a water A/B."""

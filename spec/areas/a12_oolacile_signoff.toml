@@ -1,0 +1,12 @@
+# Oolacile Township Dungeon near-wall glare TEST: NEEDS USER SIGN-OFF as an optional experiment (G2 section 4: keep
+# x0.7-0.9 only if clip falls by at least 1 point, otherwise the glare is the player lantern and this file is dropped).
+# The dungeon map row is unverified (24 Village darker or 25 Village indoor), so both get the cut.
+area = "a12"
+
+[[edit]]
+bank = "LightBank"
+rows = [24, 25]
+op = "mul"
+fields = { envSpc_colA = 0.7 }
+why = "oolacile_dungeon clip max +0.0 / ev -0.10..+0.25: cubemap-specular glare test (envSpc x0.7, never below x0.6 because the vanilla EnvSpec per-draw gain can turn metal black); envspc_x2 -0.08..+0.35 x log2 0.7 predicts -0.18..+0.04 EV raw, smaller on the p50 metric"
+

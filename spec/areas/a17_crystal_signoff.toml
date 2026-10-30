@@ -1,0 +1,14 @@
+# G5 / a17 SIGN-OFF: optional experiments (README section 6 sign-off gates). Drop this file to remove them.
+# Crystal Cave highlight recovery: the bible marks it optional and to be tested first (targets crystal_cave notes).
+area = "a17"
+
+[[edit]]
+bank = "ToneMapBank"
+rows = [3]
+op = "mul"
+fields = { grayKeyValue = 0.95 }
+why = """optional crystal_cave highlight recovery so the crystal facets read (clip may fall up to 10 points, must not \
+rise; recipe grayKey x0.9-1.0, middle). Predicted -0.06 EV (balcony graykey sweep 0.78 EV/doubling), clip falls \
+~1 point. Readability cap -0.21 EV (limit 1.0). ToneMap 3 serves place 1701 only (not ToneMap 0), so the \
+archives_balcony <-> crystal_cave pair moves by the same -0.06. Scatter 3 sunA is left alone: the mist is a \
+must-not-change and b has only 0.012 of margin to its -0.10 limit."""

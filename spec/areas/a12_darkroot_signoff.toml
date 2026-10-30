@@ -1,0 +1,18 @@
+# Darkroot green: NEEDS USER SIGN-OFF (README section 6: the green shift rests on fromsoftserve alone, so it is
+# halved). Drop this file to remove the move as a unit. Shared rows: Scatter 0 and ToneCorrect 0 also serve m12_01
+# places 1212/1215 (Royal Wood, Battle of Stoicism), which get the same greener haze and grade.
+area = "a12"
+
+[[edit]]
+bank = "LightScatteringBank"
+rows = [0]
+op = "add"
+fields = { sunR = -8, sunG = 10, sunB = -8 }
+why = "darkroot_garden oklab a -0.009..-0.002: greener, less blue-violet haze (vanilla 100/100/130 -> 92/110/122; README sec.5 halved recipe sunR -5..-10, sunG +5..+15, sunB -5..-10, middle)"
+
+[[edit]]
+bank = "ToneCorrectBank"
+rows = [0]
+op = "set"
+fields = { brightnessR = 0.97 }
+why = "darkroot_garden oklab a -0.009..-0.002 (basin -0.008..+0.002): brightnessR 1.00->0.97 (recipe 0.96-0.98, middle; README sec.2 x0.97 ~ a -0.002), luma about -0.009 EV; brightnessB 1.02 held"

@@ -1,0 +1,24 @@
+# G5 / a18 SIGN-OFF: optional experiment (README section 6 sign-off gates). Drop this file to remove it on its own.
+# Split from the former a18_kiln_asylum_signoff.toml (W3 fixer), content unchanged. The lockstep declarations for
+# char rows 32/36 live here because only this file edits them.
+area = "a18"
+
+[[edit]]
+bank = "LightBank"
+rows = [32, 36]
+op = "mul"
+fields = { colA_u = 0.92 }
+why = """optional (G5 corridor levers: 'char 32/36 colA_u x0.85-1.0 (optional)'): asylum_2 char dEV -0.30..+0.05, \
+following mod 711's sewer glow cut. Recipe middle."""
+
+[[lockstep]]
+bank = "LightBank"
+map = 20
+chars = [32]
+char_rel = [0.65, 1.10]
+
+[[lockstep]]
+bank = "LightBank"
+map = 22
+chars = [36]
+char_rel = [0.65, 1.10]

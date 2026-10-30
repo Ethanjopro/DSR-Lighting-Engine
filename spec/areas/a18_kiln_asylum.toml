@@ -1,0 +1,79 @@
+# G5 / a18 Kiln of the First Flame (m18_00) + Northern Undead Asylum (m18_01):
+# views kiln_entrance, kiln_gwyn, asylum_1, asylum_2. Round 1 (drafted before measurement; looks/G5.md, targets.json).
+# Row 0 is shared by both maps in every bank: only its sun is decided here (0); ToneMap/Fog/Scatter/Shadow 0 stay vanilla.
+# Sun classes: kiln_entrance mid (~40), asylum_1 low (~25), kiln_gwyn / asylum_2 off.
+# Rows 17/18 (vanilla colA_s 100) are spec-only under shader gate S1 and stay vanilla.
+# Rows 19/25/26/27/28/30/31/35/64 are colA_s 0 in vanilla and need no decision.
+# Optional moves live in two sign-off files, each droppable on its own: a18_kiln_shadow_signoff.toml (ShadowBank 0
+# reach, moves Kiln AND Asylum) and a18_asylum_corridor_signoff.toml (Asylum corridor char fill).
+area = "a18"
+
+# --- Sun decisions ------------------------------------------------------------------------
+[[edit]]
+bank = "LightBank"
+rows = [0, 2, 7, 10, 11, 15, 16, 23, 29, 32, 33, 36]
+op = "set"
+fields = { colA_s = 0 }
+why = """sun off: shared base row 0 (targets: 'map row 0 (shared with the Asylum) 0'; it moves all four a18 views), \
+Gwyn's boss room 2/7 (kiln_gwyn off), Kiln seal room / white passage / hub 10/11/16, and the Asylum interior \
+B1 rows 15/23/29/32/33/36 (asylum_2 off: rows 29/32/36). Under the vanilla shaders only Water reads colA_s; \
+W3 water census: none of the map rows here carries a Water material."""
+
+[[edit]]
+bank = "LightBank"
+rows = [20, 22]
+op = "set"
+fields = { colA_s = 0 }
+why = """asylum_2 sun off on the Asylum corridor row 20 (15 pieces, 3 objects) and sewer row 22 (4 pieces, 19 objects). \
+W3 water census: m0030B1/m0070B1 (row 20) and m0300B1 (row 22) carry A13_Water_lake[We], which loses its vanilla \
+c6 specular at 0. USER DECISION (W3 fixer default 0: a kept vanilla 50 would put a 0.435 sun on 22 interior \
+objects and the rows' unlightmapped meshes); the alternative is [[sun_keep]]. W4: one-row water A/B before \
+shipping (README 4.3 rule 8)."""
+
+[[edit]]
+bank = "LightBank"
+rows = [1, 5]
+op = "set"
+fields = { colA_s = 40, colG_s = 235, colB_s = 215 }
+why = """kiln_entrance sun 'mid' (G5's one open-sky view): class mid ~40 (P2 applied, radiance 0.27 R / 0.22 G / 0.18 B) \
+on char row 5 and tower row 1 (m18_00 only), warm 255/235/215 for the dying sun. The tint is NOT key-following \
+(row 5's baked key is white): it is the targets' art-intent value, abs <= 40. ShadowBank 0 sun direction agrees \
+within 4.5 deg. Shared: row 5 carries places 1800 and 1801 (15 Kiln collisions; kiln_gwyn's row 7 has only 3). \
+W4 probe gate: if row 5 is live at kiln_gwyn (sun off, black arena), drop row 5 to 25 or move the kiln_entrance \
+sun to a view-specific row."""
+
+[[edit]]
+bank = "LightBank"
+rows = [21, 34]
+op = "set"
+fields = { colA_s = 25, colR_s = 230, colG_s = 240 }
+why = """asylum_1 sun 'low' (overcast courtyard): class low ~25 (radiance <= 0.095) on map row 21 (B1 Exterior) and char \
+row 34 (courtyard terrace), cool-neutral 230/240/255. Characters keep DSR's directional modelling (sekai). \
+Rows 28/64 (other courtyard candidates, vanilla 0) stay off until a capture confirms the live row."""
+
+# --- Fill: key-to-fill separation, characters lit by fire -----------------------------------------
+[[edit]]
+bank = "LightBank"
+rows = [5]
+op = "mul"
+fields = { colA_u = 0.92, colA_d = 0.92 }
+why = """kiln_entrance key-to-fill separation (char dEV -0.20..+0.20): the recipe offsets the sun with row 5 \
+colA_u/colA_d x0.8-0.95. Upper part of the range because the re-baseline already has a 0.435 sun at vanilla 50, \
+so the mid sun lowers the character too (README section 6). Map rows 0/1 have zero ambient and are not touched."""
+
+[[edit]]
+bank = "ToneMapBank"
+rows = [20, 22]
+op = "mul"
+fields = { bloomMul = 1.3 }
+why = """asylum_2: the PTDE piece worth recovering is the interior bloom glow (Y2Kev, Destructoid): recipe middle of \
+ToneMap 20/22 bloomMul x1.2-1.4. bloom x2 ~0 EV and <= +0.5 clip in the sweep. m18_01 interior rows only, \
+so the Kiln is not moved. No grayKey or minAdaptedLum change (crushed view)."""
+
+# --- Character rows may dim relative to their map rows, never brighten (README P4) ---------------------
+[[lockstep]]
+bank = "LightBank"
+map = 0
+chars = [5]
+char_rel = [0.65, 1.10]
+

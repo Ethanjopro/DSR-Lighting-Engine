@@ -1,0 +1,98 @@
+# G4 round 1: Sen's Fortress (m15_00; LightBank rows 0-12, slot 0). Sources: looks/G4.md, looks/README.md,
+# looks/targets.json (sens, sens_bridge). Drafted before measurement; W4 captures and iterates.
+#
+# Runtime sharing (per-map MSB census, 2026-10-30): no m15_01 collision selects ToneMap 0, ToneCorrect 0 or
+# Shadow 0, so those rows only reach Sen's at runtime. LightBank 0 is really shared: 12 Anor Londo objects
+# (o5860-o5871, o5910) use it, so the row-0 fill cut and sun below also land on them (cross-check anor_entrance).
+area = "a15"
+
+# --- Sun (P9 decisions for every live Sen's row in slot 0) ------------------------------------------------
+# Rows 0/10 at 33 are a DELIBERATE COMPROMISE, not a class value (W3 fixer): sens wants low (~25) and sens_bridge mid
+# (~40), and both views sit on rows 0 and 10. After the c6 one-row probe: 25 if the sens bonfire is on them, 40 if
+# only sens_bridge is. Row 0 also lights 12 Anor Londo objects (o5860-o5871, o5910): check them in the three Anor
+# captures after the first Sen's edit.
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [10]
+op = "set"
+fields = { colA_s = 33, colR_s = 245, colG_s = 250 }
+why = "sens (low) / sens_bridge (mid) compromise on the shared outdoor char row 10: 33 = radiance ~0.17; cool-neutral 245/250/255 following the row's cool baked key 220/240/255 (README 4.3 rule 1, W3 fixer)"
+
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [3]
+op = "set"
+fields = { colA_s = 20 }
+why = "sens_bridge sun: cliff and middle-ground rows get low 15-25 (middle 20), weaker than the walkway"
+
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [4]
+op = "set"
+fields = { colA_s = 15 }
+why = "sens_bridge sun: trees row 4 at most 15, foliage beyond the shadow range would be lit flat"
+
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [1, 11, 12]
+op = "set"
+fields = { colA_s = 0 }
+why = "sun off: row 1 = indoor no-lightmap objects, rows 11/12 = indoor and shade char rows (sens: always 0)"
+
+# --- Fill: darker, more shadowed fortress with less character glow ----------------------------------------
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [0]
+op = "mul"
+fields = { colA_u = 0.9, colA_d = 0.9 }
+why = "sens/sens_bridge: map row 0 fill cut at the gentle end of x0.8-0.9; shared with 12 Anor Londo objects and sens is a pinned dark view (parish-like), where x0.85 risks passing the -0.40 EV floor"
+
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [0]
+op = "set"
+fields = { envDif_colA = 110 }
+why = "sens: map row 0 envDif 120 -> 110 (gentle end of 100-110, same EV-floor reason as the ambient cut)"
+
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [10, 11]
+op = "mul"
+fields = { colA_u = 0.8, colA_d = 0.8 }
+why = "sens/sens_bridge char de-glow (fromsoftserve dark lantern-dependent interior; mod 711 bridge glow): char rows x0.8, middle of 0.75-0.85. W4 watch: with the sun 50 -> 33 (0.435 -> 0.175) the re-baseline char crop also drops; ease row 10 to x0.85 if sens_bridge's char crop lands below -0.30 (target -0.35..+0.10)"
+
+[[edit]]
+bank = "LightBank"
+slot = "both"
+rows = [12]
+op = "mul"
+fields = { colA_u = 0.8, colA_d = 0.8 }
+why = "sens char de-glow on the shade row 12; slot both because s_LightBank 12 is slot-mirrored (Sen's B0 row, no Anor Londo user)"
+
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [10]
+op = "set"
+fields = { envDif_colA = 110, envSpc_colA = 110 }
+why = "sens (105-115 / 105-120) and sens_bridge (100-115): cut the sourceless sheen on outdoor characters; the sun adds the modelling back"
+
+[[edit]]
+bank = "ShadowBank"
+slot = 0
+rows = [0]
+op = "mul"
+fields = { endDist = 1.5, fadeBeginDist = 1.5, fadeDist = 1.5 }
+why = "sens_bridge: Shadow 0 endDist 40 -> 60 (55-70; lower-middle for the fortress-wall shimmer check), fades scaled with it; no m15_01 collision uses Shadow 0"
+[[sun_keep]]
+slot = 0
+rows = [0, 2]
+why = "Water on this row reads the same c6 light as the sun: keep vanilla colA_s and tint so the water sheen stays vanilla (W3 fixer water census). The sun here runs at the vanilla-derived strength; judge it in W4."
+

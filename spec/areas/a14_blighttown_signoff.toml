@@ -1,0 +1,27 @@
+# G3 round 1, SIGN-OFF GATED (README 6 'sign-off gates'): the Blighttown lift. Drop this file as a unit if the user
+# rejects the lift. Levers 1 and 3 of looks/G3.md section 8 only; light-rig levers 4-6 wait for sign-off.
+# Rows: swamp = ToneMap/ToneCorrect 1 'Swamp' (place 1400); bridge = 2 'Shadow Street' (probable, no place name);
+# row 3 'Underground Waterway' also carries place 1400. The live bridge/swamp rows are still unprobed, so contrast and
+# saturation go on rows 1, 2 AND 3 as a hedge (W3 fixer); all three are m14_00 only, so contrast still moves only in
+# Blighttown and only down.
+# Lever 2 (minAdaptedLum on ToneMap 2) is NOT in round 1 (W3 fixer): the bible makes it conditional ('if the bridge
+# stays crushed'), and sweep-scaled, contrast plus minLum x0.9 reach +0.29..+1.15 EV against the bridge's +0.30 p50
+# ceiling and the depths_dragon - blighttown_bridge pair (+-0.30). W4 round 2: add ToneMap 2 (or the probed bridge
+# row) minAdaptedLum x0.95 only if the first capture shows crush falling by less than 2 points with p50 delta below
+# +0.15; swamp: minAdaptedLum x0.95 on ToneMap 1 if its crush falls by less than 1 point.
+area = "a14"
+
+# Lever 1: lower contrast equally on all channels (swamp keeps its B > R,G split). Lever 3: saturation back.
+[[edit]]
+bank = "ToneCorrectBank"
+rows = [1, 2, 3]
+op = "add"
+fields = { contrastR = -0.025, contrastG = -0.025, contrastB = -0.025 }
+why = "blighttown_bridge crush must fall >= 2 (p50 ev -0.10..+0.30), blighttown_swamp crush must fall >= 1 (ev 0..+0.30): lift the crushed bottom end without brightening the mood (Blighttown is the one G3 view where DSR is the darker one). Row 3 is an unprobed hedge (place 1400, same as row 1)"
+
+[[edit]]
+bank = "ToneCorrectBank"
+rows = [1, 2, 3]
+op = "mul"
+fields = { saturation = 1.025 }
+why = "blighttown sat x0.93-1.04: give back the ~1.2% saturation the contrast cut costs (swamp green and shanty purple hold); row 3 hedge as above"

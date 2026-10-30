@@ -1,0 +1,78 @@
+# G4 round 1: lit Anor Londo (m15_01, slot 0; LightBank rows 20-35, ToneCorrect 10). Sources: looks/G4.md,
+# looks/README.md, looks/targets.json (anor_entrance, anor_interior, anor_gwynevere). Hue is held in round 1;
+# the Scatter/Fog/ambient/grade warming waits for the signed-off round 2. Drafted before measurement.
+area = "a15"
+
+# --- Sun (P9 decisions for every live Anor Londo row in slot 0) -------------------------------------------
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [20, 26, 27, 30]
+op = "set"
+fields = { colA_s = 55, colG_s = 228, colB_s = 218 }
+why = "anor_entrance high sun (~55, radiance 0.537) on outdoor map/object/char rows plus row 26 (rotating great bridge, 3 no-lightmap exterior objects, so it is not left flat next to sunlit props; W3 fixer), warm sunset tint inside the band (G 220-235, B 210-225; row 30 key is warm 255/240/200, rows 26/27 key 255/245/230). Fallback if the rim light visibly fights the disc in the W4 capture (35.5 deg): tint only at 50. W4 watch: clip must still fall >= 1 point"
+
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [21, 23, 28, 29, 31, 32, 33, 34, 35]
+op = "set"
+fields = { colA_s = 0 }
+why = "sun off: interiors (21/23/28/29/31/32/33) and Gwynevere's chamber (34/35, their only allowed edit); removes the +0.21..+0.25 EV interior leak that the re-baseline carries"
+
+# --- anor_entrance: pull back the blown sky ---------------------------------------------------------------
+[[edit]]
+bank = "ToneCorrectBank"
+slot = 0
+rows = [10]
+op = "mul"
+fields = { brightnessR = 0.905, brightnessG = 0.905, brightnessB = 0.905 }
+why = "anor_entrance: clip must fall >= 1 point; brightness 1.2 -> 1.086 (x0.905, middle of x0.88-0.93), est. -0.20 EV; grayKey, bloom and shafts held"
+
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [30]
+op = "set"
+fields = { envDif_colA = 90 }
+why = "anor_entrance chars: envDif 100 -> 90 (85-95) so the sun, not the fill, models them; colA_u left alone"
+
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [31]
+op = "set"
+fields = { colA_u = 22, colA_d = 13 }
+why = "anor_interior char over-light (Restored Lighting), char_ev -0.40..0.00: x0.88 (31: 25/15 -> 22/13), just above the bible's x0.70-0.85 because README 6 argues for less: against the re-baseline the sun removal on rows 31/33 already costs the char crop -0.15..-0.25 (sun_ab anor_interior +0.21..+0.25 leak), so x0.8 (-0.24) would total -0.39..-0.49. Est. fill -0.10..-0.13, total -0.25..-0.38 (re-baseline) / -0.10..-0.13 (Phase 0); also anor_gwynevere via row 31"
+
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [33]
+op = "set"
+fields = { colA_u = 31, colA_d = 15 }
+why = "anor_interior char over-light, char_ev -0.40..0.00: row 33 (23 collisions, the busier interior char row) x0.88 (35/17 -> 31/15), same re-baseline reasoning as row 31"
+
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [31]
+op = "set"
+fields = { envSpc_colA = 135 }
+why = "anor_interior: row 31 envSpc 180 -> 135 (120-150, x0.75, above the x0.6 black-metal limit)"
+
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [23]
+op = "set"
+fields = { envDif_colA = 225 }
+why = "anor_interior flat fill: row 23 envDif 280 -> 225 (200-250); its colA cannot be lockstepped. s_LightBank 23 is slot-mirrored, so it is not followed (would move dark Anor Londo)"
+
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [28]
+op = "mul"
+fields = { envDif_colA = 0.85 }
+why = "anor_gwynevere: statue row 28 envDif x0.85 (x0.8-0.9), hue held; row 21 held (anor_interior keeps it at 40). s_LightBank 28 is slot-mirrored, not followed"

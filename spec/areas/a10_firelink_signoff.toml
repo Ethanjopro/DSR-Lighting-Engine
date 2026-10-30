@@ -1,0 +1,20 @@
+# G1 round 1 (W3) sign-off: Firelink green. README section 6: colour resting on an unverified single source
+# (fromsoftserve, halved) needs the user's approval on its first capture. Drop this file (rename to .toml.off) to
+# remove the move on its own. Split from the former a10_g1_signoff.toml, content unchanged.
+# Skipped (G1): ToneCorrect 20 saturation x0.985 (below sat noise), ToneMap 20 maxAdapredLum (near-null).
+
+area = "a10"
+
+[[edit]]
+bank = "ToneCorrectBank"
+rows = [20]
+op = "set"
+fields = { brightnessR = 0.985, brightnessB = 1.015 }
+why = "firelink a <= +0.002, b <= +0.001: slightly greener-blue with less red, halved (G1: brightnessR 1.0->0.98-0.99, brightnessB 1.0->1.01-1.02). Est. a ~-0.001, b -0.001..-0.002. Also moves firelink_abyss_entrance (guard view). Sign-off: Firelink green"
+
+[[edit]]
+bank = "FogBank"
+rows = [20]
+op = "set"
+fields = { colR = 90, colG = 97, colB = 97 }
+why = "firelink: slightly cooler-green distance haze, density held (G1: colR 95->88-93, colG 95-100, colB 92->95-100). Sign-off: Firelink green"

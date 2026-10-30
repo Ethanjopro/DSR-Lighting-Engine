@@ -1,0 +1,41 @@
+# Oolacile / Artorias of the Abyss (m12_01), W3 round 1 main spec (looks/G2.md sections 3-4).
+# Views: sanctuary_garden, oolacile_sanctuary (hold, sun only), oolacile_township (ev -0.30..+0.05, spread +0.10..+0.40),
+# oolacile_dungeon (sun off). No ToneMap/ToneCorrect/Fog/Scatter/Shadow edits: rows 11/17/20 span the DLC and the Chasm.
+# Row mapping (places 1210-1216) is from data/live_rows.json place names and still needs the one-row probe (G2 flag 5).
+area = "a12"
+
+# --- Sun (P9) ----------------------------------------------------------------------------------------------------
+[[edit]]
+bank = "LightBank"
+rows = [23, 33]
+op = "set"
+fields = { colA_s = 25, colG_s = 230, colB_s = 225 }
+why = "oolacile_township sun class low (~25, radiance ~0.09) on Village map row 23 and Village character row 33 (place 1213); neutral-warm tint 255/230/225 because the baked key is dark red 155/55/55 and must never be cooled (README 4.3 rule 1)"
+
+[[edit]]
+bank = "LightBank"
+rows = [14]
+op = "set"
+fields = { colA_s = 25, colG_s = 242, colB_s = 225 }
+from_zero = true
+why = "sanctuary_garden (low) and oolacile_sanctuary (mid) share Mausoleum character row 14 (places 1210/1211): one value for both, so the low class (25) is used to protect the sanctuary's 12% vanilla clip and silver armour; oolacile_sanctuary's sun is therefore INTENTIONALLY low, not mid (revisit only if the one-row probe shows the two bonfires select different rows); warm-gold tint 255/242/225 following the baked sun patches. Map rows 11/20 stay 0 (characters-only sun)"
+
+[[edit]]
+bank = "LightBank"
+rows = [24, 25, 34, 35, 37, 38, 39]
+op = "set"
+fields = { colA_s = 0 }
+why = "sun off: oolacile_dungeon (24 Village darker / 25 Village indoor map rows, 34 darker-zone characters shared with Township 1213 and dungeon 1216, 35 indoor characters also at 1212/1214 Chasm); arena rows 37/38/39 are not named for a sun view (task default); vanilla 50 would otherwise render a 0.435 sun"
+
+[[sun_keep]]
+rows = [12]
+why = "Mausoleum interior map row (place 1210, sanctuary_garden): vanilla colA_s 20 is already the low class (radiance ~0.06) the view asks for (G2 sec.3)"
+
+# --- Township depth ----------------------------------------------------------------------------------------------
+[[edit]]
+bank = "LightBank"
+rows = [23, 33]
+op = "mul"
+fields = { envDif_colA = 0.875 }
+why = "oolacile_township ev -0.30..+0.05 and spread +0.10..+0.40: less env-diffuse fill under the dark fog (recipe x0.80-0.95, middle); predicted -0.10..-0.23 EV (envdif_x2 0.509..1.175 x log2 0.875), bottom end expected because ToneMap 20 adapts (0.02..0.25). Char row 33 follows map row 23. Ambient (18/12) held"
+

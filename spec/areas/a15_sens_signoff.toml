@@ -1,0 +1,11 @@
+# G4 round 1, needs user sign-off: optional colour move for Sen's Fortress. It rests only on the Burg analogy
+# (fromsoftserve: PTDE Burg fog bluer and weaker; unverified single source). Drop this file to remove it.
+area = "a15"
+
+[[edit]]
+bank = "FogBank"
+slot = 0
+rows = [1]
+op = "add"
+fields = { colR = -5 }
+why = "sens: optional slight cool drift, Fog 1 colR 140 -> 135 (0-10 R units allowed; sens b target -0.008..+0.002). Fog 1 is Sen's-only; shared Fog 0 left alone (sens_bridge fog unchanged)"

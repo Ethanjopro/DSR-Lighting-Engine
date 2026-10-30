@@ -1,0 +1,22 @@
+# G1 round 1 (W3) sign-off: Burg/Parish cooling. README section 6: colour resting on unverified single sources needs
+# the user's approval on its first capture. Drop this file (rename to .toml.off) to remove the move on its own;
+# a10_g1.toml validates without it. Split from the former a10_g1_signoff.toml, content unchanged.
+# Without this file a10_g1.toml moves burg/parish/parish_altar b warmer (see its header).
+# Skipped as round 2 (G1): Scatter 10 de-violet, ToneCorrect 10 cooling, Scatter 11 sunA/sunB (needs a firelink
+# capture), envDif 11.
+
+area = "a10"
+
+[[edit]]
+bank = "FogBank"
+rows = [10]
+op = "set"
+fields = { colR = 45, colB = 78, degRotW = 51 }
+why = "burg/parish_altar: cooler-blue, thinner Burg fog, never purple (G1/README 12: colR 53->43-48, colB 67->75-80, colG held, degRotW 60->48-54, colA held). Density is kept with the colour: same single unverified source, and thinning a teal-grey fog alone pushes b warmer against the burg b target. Est. -0.01..-0.09 EV. Moves all m10_01 exteriors. Sign-off: Burg cooling"
+
+[[edit]]
+bank = "ToneCorrectBank"
+rows = [11]
+op = "set"
+fields = { brightnessR = 1.03, brightnessB = 1.065, saturation = 0.927 }
+why = "parish: less yellow interior with G held so the shade does not drift purple (G1: brightnessR 1.05->1.02-1.04, brightnessB 1.05->1.05-1.08); saturation 0.90->0.927 (x1.03) pays back the chroma the cooling costs. Est. b -0.001..-0.003. ToneCorrect 11 is m10_01 only (all Burg/Parish interiors). Sign-off: Parish cooling"

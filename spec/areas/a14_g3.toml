@@ -1,0 +1,58 @@
+# G3 round 1 (W3 draft, before measurement): Blighttown/Quelaag (m14_00) and Demon Ruins/Lost Izalith (m14_01).
+# The Blighttown lift is sign-off gated and lives in a14_blighttown_signoff.toml. Quelaag holds.
+# Sources: looks/G3.md sections 3 and 8-11, looks/README.md sections 2-4 and 8, looks/targets.json.
+area = "a14"
+
+# --- Sun decisions (README 4.3 rule 7 / P9) ---------------------------------------------------
+# The only live a14 rows with 0 < vanilla colA_s <= 60 are 14, 20, 28, 29 (all 50). The 100-rows are spec-only under
+# shader gate S1 and stay vanilla. None of the four carries a Water material, so 0 is vanilla-neutral.
+[[edit]]
+bank = "LightBank"
+rows = [14, 28]
+op = "set"
+fields = { colA_s = 0 }
+why = "sun off in the lava caverns (demon_ruins_1/3, izalith_1/2): rows 14 'Lava' and 28 'Seal Spear' are non-light-mapped A14_lava_M[DB] meshes plus objects that would take a 0.435 sun"
+
+[[edit]]
+bank = "LightBank"
+rows = [20, 29]
+op = "set"
+fields = { colA_s = 0 }
+why = "sun off in Blighttown (blighttown_bridge/swamp, quelaag: cavern, no sky): row 20 sky dome M[D], row 29 'White Sticky Thing' M[D]_Alp, both non-light-mapped"
+
+# --- Demon Ruins 1: less flat IBL fill on the stone, lava keeps its glow ------------------------
+# Row 6 'Festering Upper': 30 map pieces, 28 objects, 7 characters, 37 collisions (places 1410/1411).
+# colA_u held at x1.0 (recipe x1.0-1.1): the envDif cut alone stays inside the DR1 range, and fewer edits.
+[[edit]]
+bank = "LightBank"
+rows = [6]
+op = "mul"
+fields = { envDif_colA = 0.9 }
+why = "demon_ruins_1 ev -0.2..+0.15: cut excess environment diffuse so the lava is the key (200 -> 180)"
+
+[[edit]]
+bank = "ToneMapBank"
+rows = [6]
+op = "mul"
+fields = { bloomMulFar = 1.1 }
+why = "demon_ruins_1 p99 >= -3, clip <= +1: lava reads at range (480 -> 528), never below vanilla"
+
+# --- Lost Izalith 1: lava bloom only --------------------------------------------------------------
+# ToneMap 7 'Ruined City' (21 collisions + 3 connect, places 1410/1411).
+[[edit]]
+bank = "ToneMapBank"
+rows = [7]
+op = "mul"
+fields = { bloomMul = 1.125 }
+why = "izalith_1 p99 >= -3, clip <= +1: lava bloom that reads at range (80 -> 90); Light and ToneCorrect hold"
+
+# --- Lost Izalith 2: cut the cool white fill that makes the character sheen ---------------------
+# Row 12 'Izalith' (m14_01 only: 14 map pieces, 101 objects, 11 collisions). x0.95 (below the x0.925 recipe mid):
+# ToneMap 12 runs min 0.18 / max 0.25, so the cut lands almost 1:1, and izalith_2 is a crushed view.
+[[edit]]
+bank = "LightBank"
+rows = [12]
+op = "mul"
+fields = { colA_u = 0.95, envSpc_colA = 0.9 }
+why = "izalith_2 d_char_env -0.4..-0.05, p50 ev -0.25..+0.1: less cool fill and specular sheen on the character (colA_u 190 -> 180, envSpc 100 -> 90)"
+

@@ -1,0 +1,12 @@
+# G1 round 1 (W3) sign-off: depths_dragon skylight-shaft experiment. README section 6: any optional experiment
+# needs the user's approval on its first capture. Drop this file (rename to .toml.off) to remove it on its own.
+# Split from the former a10_g1_signoff.toml, content unchanged.
+
+area = "a10"
+
+[[edit]]
+bank = "ToneMapBank"
+rows = [4]
+op = "set"
+fields = { lightShaftPower = 0.02 }
+why = "depths_dragon optional experiment: slight emphasis on the skylight shaft (G1: lightShaftPower 0.01->0.01-0.03, inside the vanilla anchor range; ev -0.20..+0.05, clip <= +0.5). ToneMap 4 is m10_00 only"

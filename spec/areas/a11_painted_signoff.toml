@@ -1,0 +1,10 @@
+# Painted World blue-green cast: NEEDS USER SIGN-OFF (README section 6: colour resting on one unverified source,
+# fromsoftserve DfgvdVZsRT8). Drop this file to remove the move as a unit.
+area = "a11"
+
+[[edit]]
+bank = "ToneCorrectBank"
+rows = [0, 1, 2]
+op = "set"
+fields = { brightnessR = 0.87, brightnessB = 0.935 }
+why = "painted_entrance/painted oklab b -0.014..-0.004 and a -0.006..+0.002: brightnessR 0.90->0.87 (x0.967, a ~-0.002) and brightnessB 0.90->0.935 (x1.039, b ~-0.003..-0.005), G held so the shade does not drift purple (README sec.2); luma about -0.006 EV. Rows 1/2 (Priscilla boss rows, also 0.90) get the same values so the boss room does not jump"

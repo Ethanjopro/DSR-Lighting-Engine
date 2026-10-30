@@ -1,0 +1,21 @@
+# G4 round 1: dark Anor Londo (a15 slot 1). No slot-1 baseline exists yet (targets.json _pending), so the only
+# round-1 change is the sun decision: colA_s 0 reproduces vanilla on every non-Water draw, because vanilla has no sun
+# shader. Exception (W3 water census): Sen's map piece m0000B0 (A15_Water_river[We]) sits on rows 0 and 2, so if Sen's
+# ever renders with slot 1 the river loses its vanilla c6 specular. No slot-1 Anor Londo row carries Water.
+# The fill cuts on char rows 30/31/33 wait for the <slug>_dark baseline.
+# The only other slot-1 change lives in a15_sens.toml: LightBank and s_LightBank 12 colA_u/d x0.8 (Sen's shade
+# char row; slot "both" because s_LightBank 12 is slot-mirrored). No Anor Londo collision uses row 12.
+area = "a15"
+
+[[edit]]
+bank = "LightBank"
+slot = 1
+rows = [1, 3, 4, 10, 11, 12, 20, 21, 23, 28, 29, 30, 31, 32, 35]
+op = "set"
+fields = { colA_s = 0 }
+why = "dark Anor Londo: no sun at night (P9 decision for every live slot-1 row with vanilla colA_s 50). Includes the slot-1 B0 rows 0-12: if Sen's ever renders with slot 1 it keeps the vanilla no-sun look, except the river specular on rows 0/2 (see header)"
+[[sun_keep]]
+slot = 1
+rows = [0, 2]
+why = "Water on this row reads the same c6 light as the sun: keep vanilla colA_s and tint so the water sheen stays vanilla (W3 fixer water census). The sun here runs at the vanilla-derived strength; judge it in W4."
+

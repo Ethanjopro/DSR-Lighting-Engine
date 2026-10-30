@@ -1,0 +1,25 @@
+# Darkroot Garden and Basin (m12_00), W3 round 1 main spec (looks/G2.md section 2).
+# Views: darkroot_garden (ev -0.40..-0.15, spread +0.15..+0.60, p90 >= 120), darkroot_basin (ev -0.40..-0.05).
+# Exposure is locked (ToneMap 0 min 0.11 / max 0.13): README 3 and G2 ('change one per capture round') allow ONE
+# lever per round here. Round 1 (W3 fixer) = LightBank 0/10 envDif x0.9 only. It is the lever that also moves the
+# basin cave view (Scatter barely reaches it) and it spares the bright haze that sets the garden's p90 (vanilla 131,
+# floor 120). Round 2 (W4): read p90 first, then add Scatter 0 sunA x0.90-0.92 and stop when the garden reaches
+# -0.15..-0.25 EV; do not chase -0.40. If p90 < 122, move the sunA step into the round with the signed-off
+# ToneCorrect 0 brightnessR. This follows the skeptic's order rather than the bible's 'sunA first' because sunA alone
+# would leave the basin above its -0.05 bound and cut p90 material.
+# SHARED ROWS: a12 row 0 (Light/s_Light/Scatter/ToneCorrect) also serves m12_01 places 1212/1215 (Royal Wood, Battle of
+# Stoicism) and LightBank 10 serves 1212; a16 LightBank 11 shares place 1201 (Valley of Drakes). Those guard views
+# have no baseline yet (targets.json _pending): capture them vanilla and tuned in the W4 session before the first
+# tuned a12 capture (hold +-0.15).
+# No sun decision is needed here: rows 0/1 (300) and 4 (70) are spec-only under shader gate S1 and stay vanilla,
+# char row 10 is 0 in vanilla. darkroot_garden's 'low' sun (targets: trees row 4 70->15-25) is therefore unmet by the
+# >60-stays-vanilla rule; lowering row 4 needs the user's exception (no water on row 4, trees only).
+area = "a12"
+
+[[edit]]
+bank = "LightBank"
+rows = [0, 10]
+op = "mul"
+fields = { envDif_colA = 0.90 }
+why = "darkroot_garden ev -0.40..-0.15 and spread +0.15..+0.60, darkroot_basin ev -0.40..-0.05: less flat IBL fill (G2 W1 lever 3, envDif x0.80-0.90; gentle end because exposure is locked); predicted -0.08..-0.18 EV (envdif_x2 0.509..1.175 x log2 0.9), near the top under the lock. Char row 10 follows map row 0 so characters do not gain on the scene. Moves darkroot_basin (crush ~+0.4 vs cap +1.5) and row-0/10 users in Royal Wood / Battle of Stoicism"
+

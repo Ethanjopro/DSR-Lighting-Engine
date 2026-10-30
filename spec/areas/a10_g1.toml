@@ -1,0 +1,180 @@
+# G1 round 1 (W3): Undead Burg, Undead Parish, Firelink Shrine, Depths. Drafted before measurement; W4 captures
+# and iterates. Source of every number: looks/G1.md lever recipes (middle of range), corrected by looks/README.md
+# (P2: LightBank-only colA_s classes off 0 / low ~25 / mid ~40; S1: rows 2/3/4 are spec-only and stay vanilla;
+# P9: every live row with 0 < colA_s <= 60 gets a decision here). Colour moves resting on unverified sources and
+# the optional depths_dragon shaft live in three sign-off files, each droppable on its own:
+# a10_burg_parish_signoff.toml (Burg/Parish cooling), a10_firelink_signoff.toml (Firelink green),
+# a10_depths_signoff.toml (depths_dragon shaft experiment).
+#
+# EV estimates use data/sweep_sensitivity.json per doubling: ambient (colA_u+colA_d) parish 2.05 / firelink 0.58,
+# grayKey parish 1.75 / firelink 1.04 (from the x1.5 point), shadow endDist firelink -0.12, bloom firelink +0.12.
+# Different u/d ratios are combined by c7/c8 energy (colA^2.2) weighting, then converted back to colA doublings.
+# Burg, the altar and the Depths use the parish proxy (bible) with the firelink proxy as the lower bound.
+#
+# NOT SHIPPABLE ALONE for the colour targets of burg, parish and parish_altar (W3 fixer note). This file only cuts
+# fill and adds a warm low sun: cutting the cool row-10 fill (u 220/240/255) while the warm fire stays, plus the warm
+# sun tint, moves b WARMER (direction up, size not modelled, probably +0.000..+0.003) against their cooling targets
+# (b -0.008..-0.002; parish -0.012..+0.001). The cooling lives in a10_burg_parish_signoff.toml.
+# Pair watch (W4): burg -0.19 (parish proxy) / +0.01 (firelink proxy) vs parish about -0.36 can reach +0.37 against
+# +-0.30, and depths - burg can reach -0.29 against >= -0.30. None of the three has its own sweep: if burg lands within
+# -0.05 of vanilla while parish is below -0.30, step parish (row 11), not burg.
+# Guard views with no baseline, to capture vanilla and tuned in the W4 session: lower_burg_capra (ToneMap 10, row 36),
+# firelink_abyss_entrance (ToneMap/ShadowBank 20, rows 24/29).
+
+area = "a10"
+
+# ---------------------------------------------------------------------------------------------------------------
+# m10_01 Undead Burg / Undead Parish (views burg, parish, parish_altar). Rows 10/11/15/17 and ToneMap 10/11 are
+# m10_01 only. Not touched: LightBank 16, Fog 11, Scatter 11 (shared with m10_02 Firelink), rows 1/2 of
+# ToneMap/ToneCorrect/Shadow and Fog/Scatter 1 (shared with the Depths), Hellkite ShadowBank 13, Capra row 36 fill.
+
+[[edit]]
+bank = "LightBank"
+rows = [10, 15, 17]
+op = "mul"
+fields = { colA_u = 0.91, colA_d = 0.80 }
+why = "burg/parish_altar: less flat exterior fill, ground bounce cut more than sky (G1 row 10 u x0.88-0.95, d x0.75-0.85); char rows 15/17 track row 10 so characters keep sitting in the scene. Est. row-10 views -0.11..-0.39 EV before the ToneMap 10 recovery"
+
+[[edit]]
+bank = "LightBank"
+rows = [11]
+op = "set"
+fields = { colA_u = 31, colA_d = 14 }
+why = "parish ev -0.50..-0.05, p90 >= 86 (and Burg interiors): darker indoor fill with corner separation, d cut more (G1 x0.80-0.88: colA_u 35->31 = round(x0.88), colA_d 16->14 x0.875). Sized to land without a grayKey recovery (W3 fixer): est. -0.36 EV by the parish sweep, energy-weighted. ToneMap 11 stays vanilla so the unchanged shared char row 16 is not lifted against the de-glow goal. If W4 lands parish above -0.20, step this row to x0.85 rather than touching row 16"
+
+[[edit]]
+bank = "ToneMapBank"
+rows = [10]
+op = "set"
+fields = { grayKeyValue = 0.27 }
+why = "burg/parish_altar: recover exposure after the row-10 fill cut (grayKey 0.25->0.27, x1.08, est. +0.12..+0.20 EV; the cut alone reaches burg's -0.40 floor). bloomMul held at 10 (bible x1.0-1.3 optional): with the daylight firelink/anor sweeps the grayKey alone costs clip +0.18..+0.54 against burg's +0.5. Also reaches lower_burg_capra (guard view, hold +-0.15) if its collision selects ToneMap 10"
+
+# ---------------------------------------------------------------------------------------------------------------
+# m10_02 Firelink Shrine (view firelink). Rows 20/25/27, ToneMap 20 and ShadowBank 20 are m10_02 only.
+# Scatter 20/22/23 (cyan sky, god rays) and lightShaftPower stay vanilla.
+
+[[edit]]
+bank = "ShadowBank"
+rows = [20]
+op = "mul"
+fields = { endDist = 1.9, fadeBeginDist = 1.9, fadeDist = 1.9 }
+why = "firelink: longer dynamic shadows and sun reach (endDist 10->19, fades scaled with it; G1 18-20). Est. -0.11 EV; needs a shimmer check"
+
+[[edit]]
+bank = "LightBank"
+rows = [20]
+op = "set"
+fields = { colA_u = 37, colA_d = 22 }
+why = "firelink: less flat fill (G1 row 20 x0.88-0.95; u x0.925, d x0.88). Est. -0.08 EV"
+
+[[edit]]
+bank = "LightBank"
+rows = [25, 27]
+op = "mul"
+fields = { colA_u = 0.86, colA_d = 0.86 }
+why = "firelink: characters lit less flatly (G1 char 25/27 x0.80-0.88, kept within 0.9-1.1x of row 20's ratio); the mid sun refills the key. Est. frame -0.01..-0.05 EV, more on the character crop"
+
+[[edit]]
+bank = "ToneMapBank"
+rows = [20]
+op = "set"
+fields = { bloomMul = 39 }
+why = "firelink: modest PTDE glow (bloomMul 30->39, x1.3, G1 36-42; bloomMulFar held). Est. +0.05 EV, clip +0.2"
+
+# ---------------------------------------------------------------------------------------------------------------
+# m10_00 Depths (views depths, depths_dragon). Rows 2/3/7/8/9 and ToneMap 3 are m10_00 only.
+# Held: Fog 3 (black corridor), ToneCorrect 3/4, bloom 3, envDif 3 (range includes x1.0; not needed for the EV window).
+
+[[edit]]
+bank = "LightBank"
+rows = [2, 3, 7, 8]
+op = "mul"
+fields = { colA_u = 0.85, colA_d = 0.85 }
+why = "depths: deeper fill-to-torch separation so the torch pools read as local light (G1 rows 2/3 x0.80-0.90; row 3 colA_d 20->17, the reachable value); char rows 7/8 track their map rows. Est. -0.13..-0.48 EV before the ToneMap 3 recovery"
+
+[[edit]]
+bank = "ToneMapBank"
+rows = [3]
+op = "set"
+fields = { grayKeyValue = 0.195 }
+why = "depths: recover exposure after the fill cut, keeping p50 >= 38 and p90 >= 170 (grayKey 0.18->0.195, x1.083, est. +0.12..+0.20 EV)"
+
+[[edit]]
+bank = "LightBank"
+rows = [9]
+op = "set"
+fields = { colA_u = 93 }
+why = "depths_dragon: de-glow the blue-white knight (char row 9 colA_u 120->93, x0.775, middle of G1 x0.70-0.85) while map row 4 and the teal room stay vanilla. Target char crop -0.90..-0.15 EV, frame ~-0.05"
+
+[[edit]]
+bank = "LightBank"
+rows = [0, 1, 5, 11, 14, 21, 26, 28, 29, 33, 36, 40]
+op = "set"
+fields = { colA_s = 0 }
+why = "sun off (vanilla look) on rows not named for an exterior sun view: 0 shared default of all three m10 maps (294 characters, Depths included; held until the row-0 probe), 1/5 Depths, 11 Burg/Parish indoor, 14 distant view, 21/26 Firelink indoor, 28 graveyard entrance, 29 Abyss entrance, 33 god-ray piece, 36 Capra arena, 40 boxes. Vanilla 50 would render a 0.435 'high' sun. W3 water census: none of these rows' map pieces carries a Water material"
+
+[[sun_keep]]
+rows = [13]
+why = "B1 distant view (2 map pieces, m2400B1 carries A10_Water_sewer[We]): G1 says leave vanilla, and the W3 water census shows every other mesh on the row is lightmapped ([L]), so the kept vanilla 50 lands on no sun-taking draw and only preserves the sewer water's vanilla c6 specular (README 4.3 rule 8: no zero before a water A/B)"
+
+[[edit]]
+bank = "LightBank"
+rows = [15]
+op = "set"
+fields = { colA_s = 25, colG_s = 225, colB_s = 220 }
+why = "burg/parish_altar sun class low (~25, radiance ~0.095 white); tint follows row 10's baked key 255/205/175 (README 4.3: 255/215-235/215-225)"
+
+[[edit]]
+bank = "LightBank"
+rows = [17]
+op = "set"
+fields = { colA_s = 20, colG_s = 225, colB_s = 220 }
+why = "burg character/object shade row: low sun <= 25 (20, radiance ~0.058), same warm tint as row 10"
+
+[[edit]]
+bank = "LightBank"
+rows = [23, 25]
+op = "set"
+fields = { colA_s = 40, colR_s = 248, colG_s = 252 }
+why = "firelink sun class mid (~40, radiance ~0.27 white) on map/objects, plants and characters; neutral-cool tint from the cool key (README 4.3: 240-255/250-255/255). Reach = ShadowBank 20 endDist 19. Check grass (row 23) for clipping"
+
+[[edit]]
+bank = "LightBank"
+rows = [27]
+op = "set"
+fields = { colA_s = 20, colR_s = 248, colG_s = 252 }
+why = "firelink character shade row: sun <= 20 (radiance ~0.06), same tint as row 20"
+
+# ---------------------------------------------------------------------------------------------------------------
+# Character rows track their map row (README P4). depths_dragon's de-glow is character-only by design.
+
+[[lockstep]]
+bank = "LightBank"
+map = 10
+chars = [15, 17]
+
+[[lockstep]]
+bank = "LightBank"
+map = 20
+chars = [25, 27]
+
+[[lockstep]]
+bank = "LightBank"
+map = 3
+chars = [8]
+
+[[lockstep]]
+bank = "LightBank"
+map = 2
+chars = [7]
+
+[[lockstep]]
+bank = "LightBank"
+map = 4
+chars = [9]
+char_rel = [0.65, 1.10]
+[[sun_keep]]
+slot = 0
+rows = [10, 20]
+why = "Water on this row reads the same c6 light as the sun: keep vanilla colA_s and tint so the water sheen stays vanilla (W3 fixer water census). The sun here runs at the vanilla-derived strength; judge it in W4."
+

@@ -1,0 +1,69 @@
+# G5 / a17 Duke's Archives + Crystal Cave: views archives_elevator, archives_balcony, crystal_cave.
+# Round 1 (drafted before measurement; looks/G5.md, looks/targets.json).
+# Mood: characters sit in the scene (DSRRL: DSR over-lights indoor characters here). The scene itself is held:
+# raw PTDE values were too dark for the library, and map-row ambient/envDif x2 costs +15/+28 clip at the balcony.
+# Sun class: off for every view (indoors, caves; the exterior rows 0/7/10/17 have no G5 view yet).
+# ToneMap 0 (shared by the Archives and Crystal Cave, pair archives_balcony <-> crystal_cave) is not touched.
+# Optional Crystal Cave highlight recovery lives in a17_crystal_signoff.toml.
+area = "a17"
+
+# --- Sun decisions ------------------------------------------------------------------------
+[[edit]]
+bank = "LightBank"
+rows = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 25]
+op = "set"
+fields = { colA_s = 0 }
+why = """sun off at archives_elevator, archives_balcony and crystal_cave (targets: 'colA_s 0 on every live a17 row'); \
+sun1 measured an indoor leak at the balcony (+0.07 char EV). Every live row with vanilla 50; rows 12/23 are \
+already 0. Shared: row 0 (125 characters, places 1700 and 1701) moves all three a17 views, sun-only."""
+
+# --- Archives character de-glow -------------------------------------------------------------
+# P3(a) is applied: s_LightBank fields that are 0 in vanilla (rows 18/24 colA_u, row 24 colA_d) are skipped by the
+# lockstep check, so the full recipe now reaches rows 18 and 24 (the W1 'envDif only' workaround is obsolete).
+[[edit]]
+bank = "LightBank"
+rows = [10, 11, 18, 24]
+op = "mul"
+fields = { colA_u = 0.82, colA_d = 0.92, envDif_colA = 0.9 }
+why = """archives_elevator / archives_balcony char dEV -0.45..-0.10 (DSRRL: indoor characters over-lit): recipe \
+middle colA_u x0.75-0.9, colA_d x0.85-1.0 (cut down-fill less), envDif x0.8-1.0 on the candidate char rows \
+(11/24 elevator, 18 or 10 balcony). envSpc_colA held (armour and gilt specular must not drop). Char rows only, \
+so the frame moves ~-0.03 EV. Other users: m17 collisions only (row 11 place 1700)."""
+
+[[edit]]
+bank = "LightBank"
+rows = [13, 25]
+op = "mul"
+fields = { colA_u = 0.92 }
+why = """crystal_cave char dEV -0.30..+0.05 (mod 711 cut player glow here): recipe middle of char rows 13/25 \
+colA_u x0.85-1.0. Scene, mist and crystal sparkle untouched. Other users: m17 collisions/objects only."""
+
+[[lockstep]]
+bank = "LightBank"
+map = 1
+chars = [11, 24]
+char_rel = [0.65, 1.10]
+
+[[lockstep]]
+bank = "LightBank"
+map = 8
+chars = [18]
+char_rel = [0.65, 1.10]
+
+[[lockstep]]
+bank = "LightBank"
+map = 0
+chars = [10]
+char_rel = [0.65, 1.10]
+
+[[lockstep]]
+bank = "LightBank"
+map = 3
+chars = [13]
+char_rel = [0.65, 1.10]
+
+[[lockstep]]
+bank = "LightBank"
+map = 5
+chars = [25]
+char_rel = [0.65, 1.10]
