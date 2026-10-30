@@ -1,0 +1,104 @@
+# Global lighting-model rules, enforced by tools/validate.py.
+# Starting values from the approved plan; W1 (look bible + global model) refines them.
+# rel = allowed new/vanilla ratio, abs = allowed |new - vanilla|. Applies per changed field per row.
+
+[immutable]
+# Baked lightmaps fix the light rig; cubemap IDs index textures and must never change.
+LightBank = ["degRotX_0", "degRotY_0", "degRotX_1", "degRotY_1", "degRotX_2", "degRotY_2",
+             "degRotX_s", "degRotY_s", "envDif", "envSpc_0", "envSpc_1", "envSpc_2", "envSpc_3"]
+s_LightBank = ["degRotX_0", "degRotY_0", "degRotX_1", "degRotY_1", "degRotX_2", "degRotY_2",
+               "degRotX_s", "degRotY_s", "envDif", "envSpc_0", "envSpc_1", "envSpc_2", "envSpc_3"]
+ShadowBank = ["lightDegRotX", "lightDegRotY"]
+LightScatteringBank = ["sunRotX", "sunRotY"]
+EnvLightTexBank = ["*"]
+LensFlareBank = ["*"]
+LodBank = ["*"]
+DofBank = ["*"]
+
+# --- Bands ---------------------------------------------------------------------------------
+[[band]]
+bank = "LightBank"
+fields = ["colA_0", "colA_1", "colA_2"]
+rows = "map"            # rows used by map pieces/objects (lightmaps baked against these)
+rel = [0.8, 1.2]
+
+[[band]]
+bank = "LightBank"
+fields = ["colA_u", "colA_d"]
+rel = [0.6, 1.4]
+
+[[band]]
+bank = "LightBank"
+fields = ["colR_0", "colG_0", "colB_0", "colR_1", "colG_1", "colB_1", "colR_2", "colG_2", "colB_2",
+          "colR_u", "colG_u", "colB_u", "colR_d", "colG_d", "colB_d", "colR_s", "colG_s", "colB_s"]
+abs = 40
+
+[[band]]
+bank = "LightBank"
+fields = ["envDif_colA", "envSpc_colA", "colA_s"]
+rel = [0.5, 1.5]
+
+[[band]]
+bank = "ToneCorrectBank"
+fields = ["contrastR", "contrastG", "contrastB"]
+abs = 0.10
+
+[[band]]
+bank = "ToneCorrectBank"
+fields = ["saturation"]
+rel = [0.9, 1.15]
+
+[[band]]
+bank = "ToneCorrectBank"
+fields = ["brightnessR", "brightnessG", "brightnessB"]
+rel = [0.85, 1.15]
+
+[[band]]
+bank = "ToneMapBank"
+fields = ["grayKeyValue"]
+rel = [0.7, 1.3]
+
+[[band]]
+bank = "ToneMapBank"
+fields = ["minAdaptedLum"]
+rel = [0.5, 3.0]
+
+[[band]]
+bank = "ToneMapBank"
+fields = ["maxAdapredLum"]
+rel = [0.5, 2.0]
+
+[[band]]
+bank = "ToneMapBank"
+fields = ["bloomMul", "bloomMulFar"]
+rel = [0.5, 1.5]
+
+[[band]]
+bank = "ToneMapBank"
+fields = ["lightShaftPower"]
+max = 0.10              # vanilla anchors (m10 rows 4/10/52) use 0.01-0.03
+
+[[band]]
+bank = "ShadowBank"
+fields = ["endDist"]
+rel = [0.5, 2.0]        # perspective shadow maps trade resolution for range
+
+[[band]]
+bank = "FogBank"
+fields = ["colA", "degRotW"]
+rel = [0.6, 1.6]
+
+[[band]]
+bank = "FogBank"
+fields = ["colR", "colG", "colB"]
+abs = 40
+
+# --- Readability floor ---------------------------------------------------------------------
+# Darkest-scene exposure cap ~ grayKeyValue / minAdaptedLum. Never more than this many EV below vanilla's cap.
+[readability]
+max_ev_below_vanilla = 1.0
+
+# --- Lockstep ------------------------------------------------------------------------------
+[lockstep]
+ratio_tolerance = 0.10  # char rows / s_LightBank rows must track their map row's change ratio within +-10%
+s_lightbank_same_id = true
