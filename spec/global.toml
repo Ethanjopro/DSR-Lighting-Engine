@@ -8,10 +8,19 @@ LightBank = ["degRotX_0", "degRotY_0", "degRotX_1", "degRotY_1", "degRotX_2", "d
              "degRotX_s", "degRotY_s", "envDif", "envSpc_0", "envSpc_1", "envSpc_2", "envSpc_3"]
 s_LightBank = ["degRotX_0", "degRotY_0", "degRotX_1", "degRotY_1", "degRotX_2", "degRotY_2",
                "degRotX_s", "degRotY_s", "envDif", "envSpc_0", "envSpc_1", "envSpc_2", "envSpc_3"]
-ShadowBank = ["lightDegRotX", "lightDegRotY"]
-LightScatteringBank = ["sunRotX", "sunRotY"]
+# Unswept fields are frozen until a sweep says what they do (looks/README.md P5-P8).
+ShadowBank = ["lightDegRotX", "lightDegRotY", "densityRatio", "colR", "colG", "colB", "beginDist", "calibulateFar",
+              "persedDepthOffset", "shadowVolumeDepth"]
+LightScatteringBank = ["sunRotX", "sunRotY", "distanceMul", "lsHGg", "lsBetaRay", "lsBetaMie",
+                       "reflectanceR", "reflectanceG", "reflectanceB", "reflectanceA"]
+FogBank = ["fogBeginZ", "fogEndZ", "degRotZ"]
+ToneMapBank = ["adaptSpeed", "bloomBegin", "bloomBeginFar", "bloomNearDist", "bloomFarDist", "lightShaftBegin",
+               "lightShaftAttenRate", "inverseToneMapMul"]
+ToneCorrectBank = ["hue", "sfxMultiplier"]
 EnvLightTexBank = ["*"]
 LensFlareBank = ["*"]
+LensFlareExBank = ["*"]
+PointLightBank = ["*"]      # the player lantern is out of scope for v1
 LodBank = ["*"]
 DofBank = ["*"]
 
@@ -42,11 +51,32 @@ rel = [0.5, 1.5]
 
 [[band]]
 bank = "LightBank"
+exact_bank = true       # c6 is read from LightBank, not s_LightBank (data/probe_constants.json)
 fields = ["colA_s"]
 # colA_s is the sun-strength knob (shader carrier c6 = (col_s/255 * colA_s/100)^2.2; sun radiance = 2 x c6,
 # capped at 0.6 in the shader, reached at colA_s 58). 0 = no sun (interiors). Water specular follows it.
 # Vanilla values are water-specular settings, not sun intent (data/sun_ab.json), so this is a range, not a ratio.
 max = 60
+
+[[band]]
+bank = "LightBank"
+fields = ["envDif_colR", "envDif_colG", "envDif_colB", "envSpc_colR", "envSpc_colG", "envSpc_colB"]
+abs = 40
+
+[[band]]
+bank = "LightScatteringBank"
+fields = ["sunA"]
+rel = [0.7, 1.3]        # scatter x2 = +0.27..+0.74 EV and +2.5 clip at Firelink
+
+[[band]]
+bank = "LightScatteringBank"
+fields = ["sunR", "sunG", "sunB"]
+abs = 40
+
+[[band]]
+bank = "LightScatteringBank"
+fields = ["blendCoef"]
+abs = 10
 
 [[band]]
 bank = "ToneCorrectBank"
@@ -115,3 +145,29 @@ model_gain = 2.8
 [lockstep]
 ratio_tolerance = 0.10  # char rows / s_LightBank rows must track their map row's change ratio within +-10%
 s_lightbank_same_id = true
+# colA_s is per-row sun intent, so it is excluded from all lockstep checks. s_ fields that are 0 in vanilla are
+# skipped; small integer s_ fields pass when they equal round(old x ratio). A LightBank colA field going from 0 to
+# nonzero must be listed in the area spec's from_zero, or it is an error.
+# A [[lockstep]] declaration may set char_rel = [lo, hi]: char ratio / map ratio must lie in it (dim, never boost).
+
+# --- Shadow fade ---------------------------------------------------------------------------
+[shadow_fade]
+# The sun fades with the shadow fade, so fadeBeginDist / fadeDist scale with endDist (same ratio).
+ratio_tolerance = 0.10
+
+# --- Sun decisions -------------------------------------------------------------------------
+[sun]
+# Every live LightBank row with 0 < vanilla colA_s <= spec_only_above needs an explicit decision in its area spec
+# (a colA_s edit or a [[sun_keep]] entry); missing ones are warnings. Rows above it are water/lava specular rows
+# that the shader leaves out of the sun.
+decisions_required = true
+spec_only_above = 60
+
+# --- Capture guardrails (defaults; looks/targets.json overrides them per view) -------------
+[guardrails]
+ev_abs = 0.3
+clip_max_delta = 1.0
+crush_max_delta = 3.0
+
+[transitions]
+max_extra_jump_ev = 0.3

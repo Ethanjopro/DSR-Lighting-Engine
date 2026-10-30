@@ -11,11 +11,18 @@ Spec format (one file per map block or area, any name, e.g. spec/areas/m10_02_fi
     op = "mul"                       # "mul" | "add" | "set"
     fields = { saturation = 1.08, contrastR = 0.04 }
     why = "Warmer Firelink: restore PTDE sepia"
+    from_zero = true                 # optional: this edit may turn a vanilla-0 colA field on (validate.py requires it)
 
     [[lockstep]]                     # declares char rows that must track a map row (checked by validate.py)
     bank = "LightBank"
     map = 20
     chars = [25, 26, 27]
+    char_rel = [0.65, 1.10]          # optional: char ratio / map ratio may lie in this range (default +-tolerance)
+
+    [[sun_keep]]                     # LightBank rows whose vanilla colA_s is kept as the sun on purpose
+    slot = 0                         # 0, 1 or "both"
+    rows = [10, 11]
+    why = "overcast: vanilla 50 reads as a low sun here"
 
 Integer fields are rounded; every result is clamped to the paramdef min/max.
 Writes dist/param/DrawParam/aXX_DrawParam.parambnd.dcx for edited areas and dist/build_manifest.json.
@@ -79,7 +86,7 @@ def apply_edit(bnd, edit: dict, spec_file: str, manifest: list) -> None:
                 manifest.append({
                     "area": bnd_area(bnd), "slot": slot, "bank": bank, "row": row_id, "field": field,
                     "op": op, "arg": value, "old": old, "new": get_field(row, field),
-                    "why": edit.get("why", ""), "spec": spec_file,
+                    "why": edit.get("why", ""), "spec": spec_file, "from_zero": bool(edit.get("from_zero")),
                 })
 
 
@@ -104,8 +111,10 @@ def build(out_dir: Path) -> list[dict]:
                 apply_edit(bnd, edit, spec["_file"], manifest)
         bnd.write(target)
     lockstep = [dict(l, area=s["area"], spec=s["_file"]) for s in specs for l in s.get("lockstep", [])]
+    sun_keep = [dict(k, area=s["area"], spec=s["_file"]) for s in specs for k in s.get("sun_keep", [])]
     (out_dir / "build_manifest.json").write_text(
-        json.dumps({"changes": manifest, "lockstep": lockstep}, indent=1, default=str), encoding="utf-8")
+        json.dumps({"changes": manifest, "lockstep": lockstep, "sun_keep": sun_keep}, indent=1, default=str),
+        encoding="utf-8")
     return manifest
 
 

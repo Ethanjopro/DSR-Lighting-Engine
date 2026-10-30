@@ -7,7 +7,7 @@ W1 synthesis, 2026-10-30, written after the critic pass over `G1.md`..`G5.md`.
 2. This README holds the rules every area follows: the lever model, the sun classes, fog, exposure, measurement, transitions, the validator facts, and the proposed `spec/global.toml` changes.
 3. `G1.md`..`G5.md` hold the per-area reasoning, row tables and lever recipes. Each one opens with a correction block that points back here.
 
-Nothing in this folder is enforced by `tools/validate.py` until the proposals in section 10 land in `spec/global.toml`.
+The section 10 proposals are applied in `spec/global.toml` and `tools/validate.py`.
 
 **The target, in one sentence.** Bring back the per-area mood of PTDE (stronger casts, deeper shade, less flat fill, characters that sit in the scene) using DSR's own renderer plus the real-time sun, with no PTDE assets or values, and without re-grading FromSoftware's art direction.
 
@@ -302,7 +302,9 @@ Setting colA_s to 0 on slot-1 rows reproduces vanilla exactly, so that one edit 
   - LightBank `envDif_colR/G/B`, `envSpc_colR/G/B`;
   - PointLightBank and LensFlareExBank (not immutable either).
 
-## 10. Proposed changes to `spec/global.toml` (not applied)
+## 10. Proposed changes to `spec/global.toml`
+
+**Status (2026-10-30): applied** in `spec/global.toml`, `tools/build.py` and `tools/validate.py`. P2 is `exact_bank = true` on the colA_s band. P3(c) is `from_zero = true` on an edit. P4 is `char_rel` on a `[[lockstep]]` declaration. P9 accepts a colA_s edit or a `[[sun_keep]]` entry. ShadowBank has no `gradFactor` field, so P5 omits it. The one-bank s_LightBank capture that P2 asks for is still pending.
 
 | # | Change | Reason |
 |---|---|---|
