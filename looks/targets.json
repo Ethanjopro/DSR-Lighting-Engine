@@ -1,0 +1,1662 @@
+{
+ "_doc": "Per-bonfire look targets for DSR Lighting Engine ('PTDE moods, DSR fidelity'). Machine-authoritative copy of the W1 look bibles looks/G1..G5.md after the W1 critic pass (looks/README.md explains every rule). All targets are DELTAS of captures/<run>/<variant>/<slug>.stats.json against the baseline: ev_delta = new ev - baseline ev (EV, log2 geometric-mean luminance; for exposure_metric 'p50' the exposure check uses log2(lin(p50_new)/lin(p50_base)) instead and ev becomes advisory); sat_ratio = new mean_sat / baseline mean_sat; oklab_a/b_delta = change of mid_oklab_a/b (+a magenta, +b warm); clip_max_delta / crush_max_delta = largest allowed rise in percentage points (NEGATIVE = must fall by at least that much); clip_min_delta = largest allowed fall; floors = absolute minimum p10/p50/p90 (8-bit luma); pctl_delta = allowed change of p10/p50/p90/p99 in 8-bit levels (null = unbounded); spread_delta = change of log2((p90+1)/(p10+1)); abs_limits = absolute bounds on a stats field; char_ev_delta / d_char_env = character-crop checks (tools/check_looks.py --crops); enforce = per-metric on/off; sun = sun class (sun_classes below), sun_detail = the rows; signoff = the first capture of this move needs the user's approval even when it passes. Checked by tools/check_looks.py.",
+ "_baseline": {
+  "guardrail": "re-baseline: frozen shaders + vanilla DrawParam (PLAN 'freeze shaders + re-baseline'), suggested captures/rebaseline/vanilla. Until it exists, captures/baseline_vanilla/vanilla (Phase 0, vanilla shaders).",
+  "before_after": "captures/baseline_vanilla/vanilla (Phase 0) for the user-facing before/after only."
+ },
+ "_noise": {
+  "ev_outdoor": 0.1,
+  "ev_bonfire_flicker_char_crop": 0.18,
+  "ev_repeat_parish": 0.03,
+  "ev_repeat_firelink": 0.08,
+  "oklab": 0.0015,
+  "mean_sat_abs": 0.013,
+  "rule": "judge views with a bonfire in or near frame on the mean of 2 captures (check_looks.py --repeat)"
+ },
+ "sun_classes": {
+  "_formula": "c6 = (col_s/255 * colA_s/100)^2.2 per channel (LightBank); sun radiance = 2 * c6, largest channel capped at 0.6 (colA_s 58)",
+  "off": {
+   "colA_s_now": "0",
+   "s_LightBank_now": "0",
+   "radiance": 0.0,
+   "colA_s_after_P2": "0",
+   "use": "interiors, caves, night, and every row not named for a sun"
+  },
+  "low": {
+   "colA_s_now": "15-25",
+   "s_LightBank_now": "30-50 (2x the LightBank value, +-10%)",
+   "radiance": [
+    0.031,
+    0.095
+   ],
+   "colA_s_after_P2": "~25",
+   "use": "overcast or veiled-sun exteriors"
+  },
+  "mid": {
+   "colA_s_now": "30-33",
+   "s_LightBank_now": "60 (the band max)",
+   "radiance": [
+    0.141,
+    0.174
+   ],
+   "colA_s_after_P2": "~40 (radiance 0.266)",
+   "use": "partly lit exteriors"
+  },
+  "high": {
+   "colA_s_now": "50-55",
+   "s_LightBank_now": "left at vanilla 100 (51-55 pass the +-10% lockstep untouched)",
+   "radiance": [
+    0.435,
+    0.537
+   ],
+   "colA_s_after_P2": "~55",
+   "use": "clear low sun: anor_entrance only"
+  },
+  "spec_only": {
+   "colA_s_now": "> 60 in vanilla, left untouched",
+   "radiance": "none once the shader gate (S1) exists",
+   "use": "water / lava specular rows (a10 2/3/4, a12 0/1/4/36, a13 15, a14 100-rows, a16 0, a18 17/18)"
+  },
+  "_dead_zone_now": "LightBank colA_s 34-45 and 56-60 fail validate.py on rows that are 50 in LightBank and 100 in s_LightBank; proposal P2 removes it"
+ },
+ "pairs": [
+  {
+   "a": "burg",
+   "b": "parish",
+   "diff": [
+    -0.3,
+    0.3
+   ],
+   "level": "fail",
+   "why": "shared rows 10/11; Burg -> Parish walk"
+  },
+  {
+   "a": "burg",
+   "b": "parish_altar",
+   "diff": [
+    -0.3,
+    0.3
+   ],
+   "level": "fail",
+   "why": "shared rows 10/15"
+  },
+  {
+   "a": "parish",
+   "b": "parish_altar",
+   "diff": [
+    -0.3,
+    0.3
+   ],
+   "level": "fail",
+   "why": "Parish family"
+  },
+  {
+   "a": "burg",
+   "b": "firelink",
+   "diff": [
+    -0.3,
+    0.3
+   ],
+   "level": "fail",
+   "why": "aqueduct transition"
+  },
+  {
+   "a": "depths",
+   "b": "burg",
+   "diff": [
+    -0.3,
+    null
+   ],
+   "level": "fail",
+   "why": "Lower Burg -> Depths: Depths may not fall more than 0.3 below Burg"
+  },
+  {
+   "a": "depths_dragon",
+   "b": "blighttown_bridge",
+   "diff": [
+    -0.3,
+    0.3
+   ],
+   "level": "fail",
+   "why": "Depths -> Blighttown"
+  },
+  {
+   "a": "parish",
+   "b": "darkroot_garden",
+   "diff": [
+    -0.3,
+    0.3
+   ],
+   "level": "fail",
+   "why": "Parish -> Darkroot Garden (harsh in vanilla)"
+  },
+  {
+   "a": "darkroot_garden",
+   "b": "darkroot_basin",
+   "diff": [
+    -0.3,
+    0.3
+   ],
+   "level": "fail",
+   "why": "Garden <-> Basin, shared rows"
+  },
+  {
+   "a": "painted_entrance",
+   "b": "anor_interior",
+   "diff": [
+    -0.3,
+    0.3
+   ],
+   "level": "warn",
+   "why": "Anor Londo painting -> Painted World (load transition)"
+  },
+  {
+   "a": "great_hollow",
+   "b": "ash_lake",
+   "diff": [
+    -0.3,
+    0.3
+   ],
+   "level": "warn",
+   "why": "Great Hollow -> Ash Lake"
+  },
+  {
+   "a": "blighttown_swamp",
+   "b": "quelaag",
+   "diff": [
+    -0.3,
+    0.3
+   ],
+   "level": "fail",
+   "why": "Blighttown -> Quelaag's Domain"
+  },
+  {
+   "a": "quelaag",
+   "b": "demon_ruins_1",
+   "diff": [
+    -0.3,
+    0.3
+   ],
+   "level": "fail",
+   "why": "Quelaag -> Demon Ruins"
+  },
+  {
+   "a": "demon_ruins_3",
+   "b": "izalith_1",
+   "diff": [
+    -0.3,
+    0.3
+   ],
+   "level": "fail",
+   "why": "Demon Ruins -> Lost Izalith"
+  },
+  {
+   "a": "sens_bridge",
+   "b": "anor_entrance",
+   "diff": [
+    -0.3,
+    0.3
+   ],
+   "level": "fail",
+   "why": "Sen's -> Anor Londo; shared ToneMap/Shadow 0"
+  },
+  {
+   "a": "anor_interior",
+   "b": "anor_entrance",
+   "diff": [
+    -0.3,
+    null
+   ],
+   "level": "fail",
+   "why": "outdoor -> indoor drop may grow by at most 0.3"
+  },
+  {
+   "a": "archives_balcony",
+   "b": "crystal_cave",
+   "diff": [
+    -0.3,
+    0.3
+   ],
+   "level": "fail",
+   "why": "a17 ToneMap 0 also serves Crystal Cave (place 1701)"
+  }
+ ],
+ "same_sign": [
+  {
+   "slugs": [
+    "burg",
+    "parish",
+    "parish_altar"
+   ],
+   "metric": "oklab_b",
+   "tolerance": 0.0015,
+   "level": "fail",
+   "why": "Burg/Parish b shift must share one direction (noise 0.0015)"
+  }
+ ],
+ "_pending": {
+  "dark_anor_londo": {
+   "status": "no baseline: capture slot-1 vanilla at the three Anor Londo bonfires as <slug>_dark and add them to data/bonfires.json",
+   "slugs": [
+    "anor_entrance_dark",
+    "anor_interior_dark",
+    "anor_gwynevere_dark"
+   ],
+   "provisional": {
+    "ev_delta": [
+     -0.25,
+     0.1
+    ],
+    "sat_ratio": [
+     0.95,
+     1.05
+    ],
+    "oklab_a_delta": [
+     -0.004,
+     0.004
+    ],
+    "oklab_b_delta": [
+     -0.006,
+     0.002
+    ],
+    "clip_max_delta": 0.5,
+    "crush_max_delta": 2.0,
+    "sun": "off"
+   },
+   "note": "setting colA_s 0 on slot-1 rows reproduces the vanilla look exactly (vanilla has no sun), so that edit can ship before the baseline"
+  },
+  "guard_views": {
+   "status": "no baseline; capture before any shared-row edit ships",
+   "views": {
+    "royal_wood": "a12 row 0 Light/Fog/Scatter/ToneMap/ToneCorrect (Darkroot edits bleed in)",
+    "battle_of_stoicism": "a12 row 0 (place 1215)",
+    "chasm_abyss": "a12 ToneMap 17/20 (must stay pitch black); earlier capture attempts produced no baseline",
+    "valley_of_drakes": "Darkroot Basin and New Londo transitions",
+    "lower_burg_capra": "a10 row 36 (Capra arena fill may only drop ~10%)",
+    "firelink_abyss_entrance": "a10 rows 24/29"
+   },
+   "hold_target": {
+    "ev_delta": [
+     -0.15,
+     0.15
+    ],
+    "oklab_a_delta": [
+     -0.004,
+     0.004
+    ],
+    "oklab_b_delta": [
+     -0.004,
+     0.004
+    ],
+    "clip_max_delta": 0.5,
+    "crush_max_delta": 0.5
+   }
+  }
+ },
+ "bonfires": {
+  "burg": {
+   "group": "G1",
+   "priority": "high",
+   "ev_delta": [
+    -0.4,
+    0.05
+   ],
+   "sat_ratio": [
+    0.97,
+    1.1
+   ],
+   "oklab_a_delta": [
+    -0.005,
+    0.002
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    -0.002
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 2.5,
+   "sun": "low",
+   "fog": "thinner, cooler-blue, never purple: FogBank 10 colR 53->43-48, colB 67->75-80, colG +-5, degRotW 60->48-54, colA held",
+   "evidence": "medium",
+   "sun_detail": "LightBank 10/15 colA_s 50->25-30 (s_LightBank 50-60), row 17 <= 25; tint 255/215-235/215-225 (baked key 255/205/175)",
+   "floors": {
+    "p90": 108
+   },
+   "signoff": "colour: first capture with the fog/grade cooling is a user sign-off (sources unverified)",
+   "notes": "round 1 = fill cut + fog + sun; ToneCorrect/Scatter colour only in round 2 if b is still above -0.002"
+  },
+  "parish": {
+   "group": "G1",
+   "priority": "medium",
+   "ev_delta": [
+    -0.5,
+    -0.05
+   ],
+   "sat_ratio": [
+    0.97,
+    1.1
+   ],
+   "oklab_a_delta": [
+    -0.004,
+    0.003
+   ],
+   "oklab_b_delta": [
+    -0.012,
+    0.001
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 3.0,
+   "sun": "off",
+   "fog": "unchanged: FogBank 11 is teal-blue and shared with Firelink",
+   "evidence": "medium",
+   "sun_detail": "rows 11/16 colA_s 0 (s_LightBank 0)",
+   "floors": {
+    "p90": 86
+   },
+   "notes": "no Scatter 11 or LightBank 16 edits (both shared with m10_02 Firelink); yellow comes out through ToneCorrect 11 (m10_01 only) and LightBank 11"
+  },
+  "parish_altar": {
+   "group": "G1",
+   "priority": "medium",
+   "ev_delta": [
+    -0.3,
+    0.1
+   ],
+   "sat_ratio": [
+    0.97,
+    1.1
+   ],
+   "oklab_a_delta": [
+    -0.005,
+    0.002
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    -0.002
+   ],
+   "clip_max_delta": 1.0,
+   "crush_max_delta": 2.0,
+   "sun": "low",
+   "fog": "as Burg: FogBank 10 thinner and cooler-blue",
+   "evidence": "low",
+   "sun_detail": "shares rows 10/15 with burg: colA_s 25-30",
+   "floors": {
+    "p90": 120
+   },
+   "char_ev_delta": [
+    -0.35,
+    0.1
+   ],
+   "signoff": "colour (shared with burg)"
+  },
+  "firelink": {
+   "group": "G1",
+   "priority": "high",
+   "ev_delta": [
+    -0.35,
+    0.1
+   ],
+   "sat_ratio": [
+    0.95,
+    1.06
+   ],
+   "oklab_a_delta": [
+    -0.004,
+    0.002
+   ],
+   "oklab_b_delta": [
+    -0.005,
+    0.001
+   ],
+   "clip_max_delta": 1.0,
+   "crush_max_delta": 0.5,
+   "sun": "mid",
+   "fog": "density held (FogBank 20 degRotW 60-70); colour slightly cooler-green: colR 95->88-93, colG 95-100, colB 95-100",
+   "evidence": "medium",
+   "sun_detail": "rows 20/25/23 colA_s 30-33 (s_LightBank 60), row 27 <= 20, tint 240-255/250-255/255; needs ShadowBank 20 endDist 10->18-20 with fadeBeginDist/fadeDist scaled (sun reach = shadow range)",
+   "floors": {
+    "p50": 90
+   },
+   "char_ev_delta": [
+    -0.35,
+    0.1
+   ],
+   "notes": "colour move halved (single unverified source); Scatter 20/22/23 unchanged; lightShaftPower stays 0"
+  },
+  "depths": {
+   "group": "G1",
+   "priority": "medium",
+   "ev_delta": [
+    -0.45,
+    0.05
+   ],
+   "sat_ratio": [
+    0.94,
+    1.04
+   ],
+   "oklab_a_delta": [
+    -0.004,
+    0.004
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    0.006
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 2.5,
+   "sun": "off",
+   "fog": "unchanged within +-10%: FogBank 3 near-black fog is the look",
+   "evidence": "low",
+   "sun_detail": "rows 1 and 5-9 colA_s 0; rows 2/3/4 (100/200/300, water) stay vanilla as spec-only under the shader gate",
+   "floors": {
+    "p90": 170,
+    "p50": 38
+   },
+   "notes": "LightBank 3 colA_d 20->16 or 17 (18 is unreachable: s_ 5)"
+  },
+  "depths_dragon": {
+   "group": "G1",
+   "priority": "low",
+   "ev_delta": [
+    -0.2,
+    0.05
+   ],
+   "sat_ratio": [
+    0.93,
+    1.03
+   ],
+   "oklab_a_delta": [
+    -0.004,
+    0.005
+   ],
+   "oklab_b_delta": [
+    -0.004,
+    0.004
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 2.0,
+   "sun": "off",
+   "fog": "unchanged (FogBank 4 degRotW 0: the fog lever is dead here)",
+   "evidence": "none",
+   "sun_detail": "row 9 colA_s 0; row 4 (300, pool) spec-only",
+   "floors": {
+    "p90": 118,
+    "p50": 33
+   },
+   "char_ev_delta": [
+    -0.9,
+    -0.15
+   ],
+   "notes": "character-only de-glow (char row 9 colA_u 120 -> x0.70-0.85) needs the char-row policy (proposal P4)"
+  },
+  "painted_entrance": {
+   "group": "G2",
+   "priority": "medium",
+   "ev_delta": [
+    -0.25,
+    0.1
+   ],
+   "sat_ratio": [
+    0.95,
+    1.08
+   ],
+   "oklab_a_delta": [
+    -0.006,
+    0.002
+   ],
+   "oklab_b_delta": [
+    -0.014,
+    -0.004
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 0.3,
+   "sun": "low",
+   "fog": "round 1 unchanged; after colour sign-off FogBank 0 colR -5..-10, colB 0..+10; strength unchanged",
+   "evidence": "low",
+   "sun_detail": "rows 0/11 colA_s 20-25, row 10 <= 23 (s_LightBank 140 -> <= 60); cool tint 230-245/245-255/255; snow excluded",
+   "spread_delta": [
+    -0.3,
+    0.3
+   ],
+   "signoff": "colour (single unverified source)",
+   "notes": "round 1 = ToneCorrect 0 (mirrored to boss rows 1/2) only; ambient hue and fog colour wait for sign-off"
+  },
+  "painted": {
+   "group": "G2",
+   "priority": "medium",
+   "ev_delta": [
+    -0.25,
+    0.1
+   ],
+   "sat_ratio": [
+    0.95,
+    1.08
+   ],
+   "oklab_a_delta": [
+    -0.006,
+    0.002
+   ],
+   "oklab_b_delta": [
+    -0.014,
+    -0.004
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 0.3,
+   "sun": "low",
+   "fog": "as painted_entrance",
+   "evidence": "low",
+   "sun_detail": "as painted_entrance (shared a11 rows)",
+   "spread_delta": [
+    -0.3,
+    0.3
+   ],
+   "signoff": "colour (single unverified source)"
+  },
+  "darkroot_garden": {
+   "group": "G2",
+   "priority": "high",
+   "ev_delta": [
+    -0.4,
+    -0.15
+   ],
+   "sat_ratio": [
+    0.98,
+    1.1
+   ],
+   "oklab_a_delta": [
+    -0.009,
+    -0.002
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    0.002
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 1.5,
+   "sun": "low",
+   "fog": "FogBank 0 stays off (degRotW 0); less milky scattering: Scatter 0 sunA x0.75-0.90, greener sun colour (sunR -5..-10, sunG +5..+15, sunB -5..-10)",
+   "evidence": "medium",
+   "sun_detail": "trees row 4 colA_s 70->15-25 only; char row 10 stays 0 in v1; row 0 (300, lake) spec-only",
+   "floors": {
+    "p90": 120
+   },
+   "spread_delta": [
+    0.15,
+    0.6
+   ],
+   "signoff": "colour (green shift is single-source)",
+   "notes": "three levers max: Scatter 0 (sunA + hue), ToneCorrect 0 brightnessR, LightBank 0 envDif_colA; spot-check Royal Wood / Battle of Stoicism (shared a12 row 0, no baseline yet)"
+  },
+  "darkroot_basin": {
+   "group": "G2",
+   "priority": "high",
+   "ev_delta": [
+    -0.4,
+    -0.05
+   ],
+   "sat_ratio": [
+    0.97,
+    1.08
+   ],
+   "oklab_a_delta": [
+    -0.008,
+    0.002
+   ],
+   "oklab_b_delta": [
+    -0.01,
+    0.002
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 1.5,
+   "sun": "off",
+   "fog": "same shared Scatter 0 haze reduction as the garden; FogBank 0 stays off",
+   "evidence": "medium",
+   "sun_detail": "shares every row with darkroot_garden; off cannot be enforced on shared rows: verify the character crop gains <= +0.05 EV between a sun build and sun off",
+   "spread_delta": [
+    -0.3,
+    0.4
+   ],
+   "notes": "its crush cap is the stop condition for the shared ambient cut"
+  },
+  "sanctuary_garden": {
+   "group": "G2",
+   "priority": "low",
+   "ev_delta": [
+    -0.2,
+    0.1
+   ],
+   "sat_ratio": [
+    0.95,
+    1.03
+   ],
+   "oklab_a_delta": [
+    -0.004,
+    0.004
+   ],
+   "oklab_b_delta": [
+    -0.006,
+    0.004
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 1.0,
+   "sun": "low",
+   "fog": "unchanged",
+   "evidence": "none",
+   "sun_detail": "char row 14 colA_s 0->15-25 needs an explicit 0->nonzero declaration (P3); map row 12 stays 20",
+   "spread_delta": [
+    -0.3,
+    0.3
+   ],
+   "notes": "hold; one-row tint probe before touching DLC rows; no saturation added"
+  },
+  "oolacile_sanctuary": {
+   "group": "G2",
+   "priority": "low",
+   "ev_delta": [
+    -0.15,
+    0.1
+   ],
+   "sat_ratio": [
+    0.96,
+    1.05
+   ],
+   "oklab_a_delta": [
+    -0.004,
+    0.004
+   ],
+   "oklab_b_delta": [
+    -0.003,
+    0.006
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 0.5,
+   "sun": "mid",
+   "fog": "unchanged",
+   "evidence": "none",
+   "sun_detail": "char row 14 colA_s 0->30-33 warm gold 255/235-250/215-235 (explicit 0->nonzero declaration); map rows 11/20 stay 0",
+   "spread_delta": [
+    -0.3,
+    0.3
+   ],
+   "notes": "hold; no grading edits (ToneMap/ToneCorrect 11/20 span the DLC)"
+  },
+  "oolacile_township": {
+   "group": "G2",
+   "priority": "low",
+   "ev_delta": [
+    -0.3,
+    0.05
+   ],
+   "sat_ratio": [
+    0.95,
+    1.05
+   ],
+   "oklab_a_delta": [
+    -0.004,
+    0.004
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    0.002
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 1.5,
+   "sun": "low",
+   "fog": "Fog 23 strength holds; colour at most -6 per channel toward blue-black",
+   "evidence": "none",
+   "sun_detail": "char 33 / map 23 colA_s 50->20-25, neutral-warm tint 255/225-235/220-230 (baked key is dark red 155/55/55)",
+   "spread_delta": [
+    0.1,
+    0.4
+   ],
+   "notes": "no ShadowBank 20 change (spans places 1211-1216); no ToneMap/ToneCorrect 20 edits"
+  },
+  "oolacile_dungeon": {
+   "group": "G2",
+   "priority": "low",
+   "ev_delta": [
+    -0.1,
+    0.25
+   ],
+   "sat_ratio": [
+    0.95,
+    1.08
+   ],
+   "oklab_a_delta": [
+    -0.004,
+    0.004
+   ],
+   "oklab_b_delta": [
+    -0.005,
+    0.004
+   ],
+   "clip_max_delta": 0.0,
+   "crush_max_delta": 0.5,
+   "sun": "off",
+   "fog": "unchanged",
+   "evidence": "none",
+   "exposure_metric": "p50",
+   "sun_detail": "rows 24/25/35 colA_s 0; row 34 0 or <= 15 (shared with Township)",
+   "notes": "no grayKey cut or minAdaptedLum rise: ToneMap 20 is DLC-wide and ToneMap 17 also covers the Chasm (1214)"
+  },
+  "catacombs_entrance": {
+   "group": "G3",
+   "priority": "medium",
+   "ev_delta": [
+    -0.35,
+    0.05
+   ],
+   "sat_ratio": [
+    0.97,
+    1.05
+   ],
+   "oklab_a_delta": [
+    -0.008,
+    0.008
+   ],
+   "oklab_b_delta": [
+    -0.012,
+    0.005
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 3.0,
+   "sun": "off",
+   "fog": "unchanged",
+   "evidence": "low",
+   "sun_detail": "rows 0/1/3/38 colA_s 50->0 (s_LightBank 0)",
+   "pctl_delta": {
+    "p90": [
+     -10,
+     3
+    ],
+    "p10": [
+     null,
+     0
+    ]
+   },
+   "notes": "LightBank 0 colA_d x0.85-0.9 only (colA_u quantised to x0.925-0.975 by s_ 0); LightBank 10 colA_u x0.85-0.9, envDif x0.85-1.0"
+  },
+  "catacombs": {
+   "group": "G3",
+   "priority": "medium",
+   "ev_delta": [
+    -0.35,
+    0.05
+   ],
+   "sat_ratio": [
+    0.97,
+    1.06
+   ],
+   "oklab_a_delta": [
+    -0.008,
+    0.008
+   ],
+   "oklab_b_delta": [
+    -0.012,
+    0.005
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 3.0,
+   "sun": "off",
+   "fog": "unchanged",
+   "evidence": "low",
+   "sun_detail": "as catacombs_entrance",
+   "pctl_delta": {
+    "p90": [
+     -8,
+     3
+    ]
+   },
+   "floors": {
+    "p50": 28
+   }
+  },
+  "tomb_1": {
+   "group": "G3",
+   "priority": "medium",
+   "ev_delta": [
+    -0.5,
+    0.3
+   ],
+   "sat_ratio": [
+    0.85,
+    1.2
+   ],
+   "oklab_a_delta": [
+    -0.02,
+    0.02
+   ],
+   "oklab_b_delta": [
+    -0.02,
+    0.02
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 1.0,
+   "sun": "off",
+   "fog": "unchanged (no veil: a lift would kill the void)",
+   "evidence": "low",
+   "enforce": {
+    "ev": false,
+    "sat": false,
+    "oklab": false
+   },
+   "pctl_delta": {
+    "p99": [
+     -10,
+     5
+    ]
+   },
+   "char_ev_delta": [
+    -0.3,
+    0.15
+   ],
+   "sun_detail": "row 0 colA_s 50->0 (s_LightBank 0 and 14 -> 0)",
+   "notes": "hold; no ToneCorrect 14 brightness change; ev/sat/oklab unreliable (crush 84%)"
+  },
+  "tomb_2": {
+   "group": "G3",
+   "priority": "medium",
+   "ev_delta": [
+    -0.5,
+    0.3
+   ],
+   "sat_ratio": [
+    0.85,
+    1.2
+   ],
+   "oklab_a_delta": [
+    -0.02,
+    0.02
+   ],
+   "oklab_b_delta": [
+    -0.02,
+    0.02
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 1.0,
+   "sun": "off",
+   "fog": "unchanged",
+   "evidence": "low",
+   "enforce": {
+    "ev": false,
+    "sat": false,
+    "oklab": false
+   },
+   "pctl_delta": {
+    "p99": [
+     -10,
+     5
+    ]
+   },
+   "char_ev_delta": [
+    -0.3,
+    0.15
+   ],
+   "sun_detail": "row 0 -> 0; s_LightBank 0/14/27 -> 0",
+   "notes": "hold; ev/sat/oklab unreliable (crush 93%)"
+  },
+  "great_hollow": {
+   "group": "G3",
+   "priority": "low",
+   "ev_delta": [
+    -0.25,
+    0.1
+   ],
+   "sat_ratio": [
+    0.97,
+    1.05
+   ],
+   "oklab_a_delta": [
+    -0.008,
+    0.008
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    0.008
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 2.0,
+   "sun": "off",
+   "fog": "unchanged (teal haze, fog 5)",
+   "evidence": "none",
+   "d_char_env": [
+    -0.5,
+    -0.1
+   ],
+   "sun_detail": "rows 5/42 stay 0",
+   "notes": "char row 42 envSpc_colA 500->300-400, envDif_colA x0.8-0.95"
+  },
+  "ash_lake": {
+   "group": "G3",
+   "priority": "low",
+   "ev_delta": [
+    -0.15,
+    0.15
+   ],
+   "sat_ratio": [
+    0.97,
+    1.05
+   ],
+   "oklab_a_delta": [
+    -0.006,
+    0.006
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    0.008
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 1.5,
+   "sun": "low",
+   "fog": "unchanged (signature cyan mist, fog 18)",
+   "evidence": "none",
+   "d_char_env": [
+    -0.05,
+    0.25
+   ],
+   "sun_detail": "LightBank 18 colA_s 0->20-25 (explicit 0->nonzero declaration), white or colR_s -10..-20; row 18 also has m13_01 users: verify none are Tomb pieces; drop to 0 on a hard sun line or clip > +0.5"
+  },
+  "blighttown_bridge": {
+   "group": "G3",
+   "priority": "high",
+   "ev_delta": [
+    -0.1,
+    0.3
+   ],
+   "sat_ratio": [
+    0.93,
+    1.04
+   ],
+   "oklab_a_delta": [
+    -0.008,
+    0.008
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    0.008
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": -2.0,
+   "sun": "off",
+   "fog": "unchanged (purple-grey shanty haze)",
+   "evidence": "medium, contested",
+   "exposure_metric": "p50",
+   "sun_detail": "rows 2/5 colA_s 100 stay vanilla (spec-only); rows 0/22/23 (100) likewise",
+   "signoff": "lift is contested (display-dependent): round 1 = ToneCorrect 2 contrast -0.02..-0.03, grayKey trim, saturation; user sign-off before light-rig steps",
+   "notes": "crush must FALL by >= 2 points (aim 2-6); probe the live ToneMap row first (rows 1/2/3)"
+  },
+  "blighttown_swamp": {
+   "group": "G3",
+   "priority": "high",
+   "ev_delta": [
+    0.0,
+    0.3
+   ],
+   "sat_ratio": [
+    0.93,
+    1.04
+   ],
+   "oklab_a_delta": [
+    -0.008,
+    0.008
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    0.008
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": -1.0,
+   "sun": "off",
+   "fog": "unchanged",
+   "evidence": "medium, contested",
+   "pctl_delta": {
+    "p10": [
+     0,
+     4
+    ],
+    "p50": [
+     -2,
+     5
+    ]
+   },
+   "sun_detail": "row 0 (100, swamp water and enemies) spec-only under the gate",
+   "signoff": "as blighttown_bridge",
+   "notes": "crush must FALL by >= 1 point (aim 1-4); keep ToneCorrect 1 B > R,G split"
+  },
+  "quelaag": {
+   "group": "G3",
+   "priority": "low",
+   "ev_delta": [
+    -0.2,
+    0.1
+   ],
+   "sat_ratio": [
+    0.96,
+    1.04
+   ],
+   "oklab_a_delta": [
+    -0.008,
+    0.008
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    0.008
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 2.0,
+   "sun": "off",
+   "fog": "unchanged (fog 5 at strength 500)",
+   "evidence": "low",
+   "d_char_env": [
+    -0.3,
+    0.05
+   ],
+   "sun_detail": "row 5 (100) spec-only under the gate; without the gate colA_s 0 (s_ 50 -> 0)"
+  },
+  "demon_ruins_1": {
+   "group": "G3",
+   "priority": "medium",
+   "ev_delta": [
+    -0.2,
+    0.15
+   ],
+   "sat_ratio": [
+    0.97,
+    1.03
+   ],
+   "oklab_a_delta": [
+    -0.008,
+    0.008
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    0.008
+   ],
+   "clip_max_delta": 1.0,
+   "crush_max_delta": 1.0,
+   "sun": "off",
+   "fog": "unchanged (orange distance band, fog 6)",
+   "evidence": "low",
+   "pctl_delta": {
+    "p99": [
+     -3,
+     null
+    ]
+   },
+   "sun_detail": "with the gate only rows 14/28 (colA_s 50) need 0; underlight experiment not in v1",
+   "notes": "LightBank 6 envDif x0.85-0.95, colA_u x1.0-1.1; ToneMap 6 bloomMulFar x1.0-1.2, never below 1.0"
+  },
+  "demon_ruins_3": {
+   "group": "G3",
+   "priority": "low",
+   "ev_delta": [
+    -0.15,
+    0.2
+   ],
+   "sat_ratio": [
+    0.96,
+    1.04
+   ],
+   "oklab_a_delta": [
+    -0.008,
+    0.008
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    0.008
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 1.0,
+   "sun": "off",
+   "fog": "unchanged",
+   "evidence": "none",
+   "exposure_metric": "p50",
+   "sun_detail": "as demon_ruins_1"
+  },
+  "izalith_1": {
+   "group": "G3",
+   "priority": "medium",
+   "ev_delta": [
+    -0.2,
+    0.15
+   ],
+   "sat_ratio": [
+    0.97,
+    1.03
+   ],
+   "oklab_a_delta": [
+    -0.008,
+    0.008
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    0.008
+   ],
+   "clip_max_delta": 1.0,
+   "crush_max_delta": 1.0,
+   "sun": "off",
+   "fog": "unchanged",
+   "evidence": "low",
+   "pctl_delta": {
+    "p99": [
+     -3,
+     null
+    ]
+   },
+   "floors": {
+    "p50": 45
+   },
+   "sun_detail": "as demon_ruins_1",
+   "notes": "ToneMap 7 bloomMul x1.0-1.25, never below 1.0; Light and ToneCorrect hold"
+  },
+  "izalith_2": {
+   "group": "G3",
+   "priority": "medium",
+   "ev_delta": [
+    -0.25,
+    0.1
+   ],
+   "sat_ratio": [
+    0.97,
+    1.04
+   ],
+   "oklab_a_delta": [
+    -0.008,
+    0.008
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    0.008
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 2.0,
+   "sun": "off",
+   "fog": "unchanged (red-tinted fog 12)",
+   "evidence": "none",
+   "exposure_metric": "p50",
+   "d_char_env": [
+    -0.4,
+    -0.05
+   ],
+   "sun_detail": "row 12 (100) spec-only under the gate",
+   "notes": "LightBank 12 colA_u x0.85-1.0, envSpc_colA x0.8-1.0"
+  },
+  "sens": {
+   "group": "G4",
+   "priority": "medium",
+   "ev_delta": [
+    -0.4,
+    0.0
+   ],
+   "sat_ratio": [
+    0.98,
+    1.1
+   ],
+   "oklab_a_delta": [
+    -0.006,
+    0.003
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    0.002
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 2.0,
+   "sun": "low",
+   "fog": "unchanged density (Fog 0/1 degRotW x0.9-1.1); colour may lose 0-10 R units",
+   "evidence": "low",
+   "sun_detail": "outdoor char row 10 colA_s 15-25; rows 11/12 0",
+   "floors": {
+    "p90": 71,
+    "p50": 41
+   },
+   "pctl_delta": {
+    "p10": [
+     -2,
+     null
+    ]
+   },
+   "notes": "minAdaptedLum is the last resort only (ToneMap 0 is shared with Anor Londo)"
+  },
+  "sens_bridge": {
+   "group": "G4",
+   "priority": "medium",
+   "ev_delta": [
+    -0.3,
+    0.05
+   ],
+   "sat_ratio": [
+    0.95,
+    1.06
+   ],
+   "oklab_a_delta": [
+    -0.006,
+    0.003
+   ],
+   "oklab_b_delta": [
+    -0.006,
+    0.003
+   ],
+   "clip_max_delta": 0.8,
+   "crush_max_delta": 2.0,
+   "sun": "mid",
+   "fog": "unchanged; no denser haze",
+   "evidence": "low",
+   "sun_detail": "rows 0/10 colA_s 30-33 (s_LightBank 60), rows 2/3 15-25, trees row 4 <= 15",
+   "floors": {
+    "p90": 101
+   },
+   "char_ev_delta": [
+    -0.35,
+    0.1
+   ],
+   "notes": "Shadow 0 endDist 40->55-70 is shared with Anor Londo (cross-check); tune ToneMap 0 with sens"
+  },
+  "anor_entrance": {
+   "group": "G4",
+   "priority": "high",
+   "ev_delta": [
+    -0.3,
+    0.05
+   ],
+   "sat_ratio": [
+    0.98,
+    1.12
+   ],
+   "oklab_a_delta": [
+    -0.006,
+    0.006
+   ],
+   "oklab_b_delta": [
+    -0.006,
+    0.006
+   ],
+   "clip_max_delta": -1.0,
+   "crush_max_delta": 1.0,
+   "sun": "high",
+   "fog": "unchanged density (Fog 10 degRotW 50 +-10%); tint warming deferred to a signed-off round 2 (Fog 10 is shared with Sen's)",
+   "evidence": "low, contested",
+   "sun_detail": "rows 30/27/20 colA_s 50-55 (51-55 with s_LightBank left at 100), tint colG_s 220-235, colB_s 210-225; if the character rim light visibly disagrees with the sun disc (35 deg apart), fall back to tint-only at 50",
+   "floors": {
+    "p50": 150
+   },
+   "notes": "clip must FALL by >= 1 point (aim 1-4) via ToneCorrect 10 brightness x0.88-0.93; no bloomMul or lightShaftPower increase; maxAdapredLum is a near-null lever"
+  },
+  "anor_interior": {
+   "group": "G4",
+   "priority": "high",
+   "ev_delta": [
+    -0.45,
+    -0.05
+   ],
+   "sat_ratio": [
+    0.92,
+    1.04
+   ],
+   "oklab_a_delta": [
+    -0.006,
+    0.006
+   ],
+   "oklab_b_delta": [
+    -0.006,
+    0.006
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 1.5,
+   "sun": "off",
+   "fog": "unchanged",
+   "evidence": "low",
+   "sun_detail": "colA_s 50->0 on rows 21/23/28/29/31/32/33 (s_LightBank 0)",
+   "floors": {
+    "p90": 90
+   },
+   "char_ev_delta": [
+    -0.4,
+    0.0
+   ]
+  },
+  "anor_gwynevere": {
+   "group": "G4",
+   "priority": "low",
+   "ev_delta": [
+    -0.35,
+    0.0
+   ],
+   "sat_ratio": [
+    0.95,
+    1.06
+   ],
+   "oklab_a_delta": [
+    -0.006,
+    0.006
+   ],
+   "oklab_b_delta": [
+    -0.006,
+    0.006
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 1.5,
+   "sun": "off",
+   "fog": "unchanged",
+   "evidence": "none",
+   "sun_detail": "also colA_s 50->0 on rows 34/35 (their only allowed edit)",
+   "floors": {
+    "p90": 116
+   }
+  },
+  "new_londo": {
+   "group": "G5",
+   "priority": "low",
+   "ev_delta": [
+    -0.25,
+    0.15
+   ],
+   "sat_ratio": [
+    0.95,
+    1.05
+   ],
+   "oklab_a_delta": [
+    -0.008,
+    0.006
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    0.006
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 1.5,
+   "sun": "off",
+   "fog": "unchanged (colour, strength and distances of FogBank 0/1)",
+   "evidence": "low",
+   "sun_detail": "char rows 10/11/13 colA_s 0; map rows 2-5 0 unless water; row 0 (200, flood water, 108 characters) spec-only under the gate",
+   "floors": {
+    "p90": 137
+   },
+   "char_ev_delta": [
+    -0.1,
+    0.1
+   ]
+  },
+  "new_londo_ingward": {
+   "group": "G5",
+   "priority": "low",
+   "ev_delta": [
+    -0.15,
+    0.15
+   ],
+   "sat_ratio": [
+    0.95,
+    1.05
+   ],
+   "oklab_a_delta": [
+    -0.008,
+    0.006
+   ],
+   "oklab_b_delta": [
+    -0.008,
+    0.006
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 1.0,
+   "sun": "off",
+   "fog": "unchanged",
+   "evidence": "low",
+   "sun_detail": "as new_londo",
+   "floors": {
+    "p90": 111,
+    "p50": 28
+   },
+   "char_ev_delta": [
+    -0.1,
+    0.1
+   ],
+   "notes": "no ToneMap darkening"
+  },
+  "archives_elevator": {
+   "group": "G5",
+   "priority": "medium",
+   "ev_delta": [
+    -0.3,
+    0.1
+   ],
+   "sat_ratio": [
+    0.95,
+    1.08
+   ],
+   "oklab_a_delta": [
+    -0.005,
+    0.004
+   ],
+   "oklab_b_delta": [
+    -0.01,
+    0.004
+   ],
+   "clip_max_delta": 0.0,
+   "crush_max_delta": 2.0,
+   "sun": "off",
+   "fog": "unchanged (FogBank 1)",
+   "evidence": "low (single unverified source)",
+   "sun_detail": "colA_s 0 on every live a17 row",
+   "floors": {
+    "p90": 238
+   },
+   "char_ev_delta": [
+    -0.45,
+    -0.1
+   ],
+   "notes": "char row 11 colA_u x0.75-0.9 (s_ 10, feasible); row 24 colA_u/d are quantised by s_ 0: use envDif_colA; keep char envSpc_colA >= vanilla"
+  },
+  "archives_balcony": {
+   "group": "G5",
+   "priority": "medium",
+   "ev_delta": [
+    -0.3,
+    0.1
+   ],
+   "sat_ratio": [
+    0.95,
+    1.08
+   ],
+   "oklab_a_delta": [
+    -0.006,
+    0.003
+   ],
+   "oklab_b_delta": [
+    -0.01,
+    0.003
+   ],
+   "clip_max_delta": 0.5,
+   "crush_max_delta": 1.5,
+   "sun": "off",
+   "fog": "unchanged",
+   "evidence": "low (single unverified source)",
+   "sun_detail": "colA_s 0",
+   "floors": {
+    "p90": 215
+   },
+   "char_ev_delta": [
+    -0.45,
+    -0.1
+   ],
+   "notes": "char row 18 colA_u is quantised by s_ 0: use envDif_colA x0.8-0.9; any ToneMap 0 change must re-check crystal_cave"
+  },
+  "crystal_cave": {
+   "group": "G5",
+   "priority": "low",
+   "ev_delta": [
+    -0.3,
+    0.05
+   ],
+   "sat_ratio": [
+    0.97,
+    1.08
+   ],
+   "oklab_a_delta": [
+    -0.006,
+    0.006
+   ],
+   "oklab_b_delta": [
+    -0.01,
+    0.01
+   ],
+   "clip_max_delta": 0.0,
+   "crush_max_delta": 1.0,
+   "sun": "off",
+   "fog": "unchanged (FogBank 3 degRotW is 0)",
+   "evidence": "none",
+   "clip_min_delta": -10.0,
+   "abs_limits": {
+    "mid_oklab_b": [
+     null,
+     -0.1
+    ]
+   },
+   "floors": {
+    "p90": 245
+   },
+   "char_ev_delta": [
+    -0.3,
+    0.05
+   ],
+   "sun_detail": "colA_s 0 unless water is in view",
+   "notes": "highlight recovery optional and tested first (grayKey x0.9-1.0 or Scatter 3 sunA x0.85-1.0); maxAdapredLum is near-null"
+  },
+  "kiln_entrance": {
+   "group": "G5",
+   "priority": "medium",
+   "ev_delta": [
+    -0.3,
+    0.1
+   ],
+   "sat_ratio": [
+    0.92,
+    1.05
+   ],
+   "oklab_a_delta": [
+    -0.004,
+    0.004
+   ],
+   "oklab_b_delta": [
+    -0.002,
+    0.012
+   ],
+   "clip_max_delta": 1.0,
+   "crush_max_delta": 2.0,
+   "sun": "mid",
+   "fog": "unchanged (FogBank 0 is shared with the Asylum)",
+   "evidence": "none",
+   "sun_detail": "char row 5 and map row 1 colA_s 30-33 (s_LightBank 60), tint ~255/235/215; fallback 50 unchanged + warm tint; map row 0 (shared with the Asylum) 0",
+   "floors": {
+    "p90": 193
+   },
+   "char_ev_delta": [
+    -0.2,
+    0.2
+   ]
+  },
+  "kiln_gwyn": {
+   "group": "G5",
+   "priority": "low",
+   "ev_delta": [
+    -0.3,
+    0.15
+   ],
+   "sat_ratio": [
+    0.95,
+    1.08
+   ],
+   "oklab_a_delta": [
+    -0.004,
+    0.006
+   ],
+   "oklab_b_delta": [
+    -0.004,
+    0.008
+   ],
+   "clip_max_delta": 1.0,
+   "crush_max_delta": 1.5,
+   "sun": "off",
+   "fog": "unchanged (FogBank 2)",
+   "evidence": "none",
+   "sun_detail": "map row 2 and char row 7 colA_s 0",
+   "floors": {
+    "p90": 115,
+    "p50": 24
+   },
+   "char_ev_delta": [
+    -0.3,
+    0.05
+   ],
+   "notes": "no ToneMap darkening (crush 19.9%)"
+  },
+  "asylum_1": {
+   "group": "G5",
+   "priority": "high",
+   "ev_delta": [
+    -0.25,
+    0.1
+   ],
+   "sat_ratio": [
+    0.95,
+    1.06
+   ],
+   "oklab_a_delta": [
+    -0.005,
+    0.004
+   ],
+   "oklab_b_delta": [
+    -0.01,
+    0.004
+   ],
+   "clip_max_delta": 1.0,
+   "crush_max_delta": 2.0,
+   "sun": "low",
+   "fog": "unchanged",
+   "evidence": "medium, split",
+   "sun_detail": "live courtyard char row and map row 21 colA_s 20-25, tint ~230/240/255; interior B1 rows and shared row 0 at 0",
+   "floors": {
+    "p90": 183
+   },
+   "char_ev_delta": [
+    -0.15,
+    0.2
+   ],
+   "notes": "confirm rows first (map 21; char 34/28/64; ToneMap 27 or 0)"
+  },
+  "asylum_2": {
+   "group": "G5",
+   "priority": "medium",
+   "ev_delta": [
+    -0.15,
+    0.2
+   ],
+   "sat_ratio": [
+    0.95,
+    1.08
+   ],
+   "oklab_a_delta": [
+    -0.006,
+    0.006
+   ],
+   "oklab_b_delta": [
+    -0.006,
+    0.008
+   ],
+   "clip_max_delta": 1.0,
+   "crush_max_delta": 0.5,
+   "sun": "off",
+   "fog": "unchanged (FogBank 20/22)",
+   "evidence": "low",
+   "exposure_metric": "p50",
+   "sun_detail": "rows 20/22/29/32/36 colA_s 0",
+   "floors": {
+    "p90": 80
+   },
+   "char_ev_delta": [
+    -0.3,
+    0.05
+   ],
+   "notes": "ToneMap 20/22 bloomMul x1.2-1.4; never raise minAdaptedLum or lower grayKey"
+  }
+ }
+}
