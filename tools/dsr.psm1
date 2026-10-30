@@ -118,6 +118,7 @@ function Test-Rgb($c, $r, $g, $b, [int]$tol = 25) {
 function Get-DsrState {
     $h = Get-DsrWindow
     if ($h -eq [IntPtr]::Zero) { return "NoWindow" }
+    [void][DsrInput]::Focus($h)   # screen capture reads the composed desktop; other windows must not overlap
     $bmp = [DsrInput]::Grab($h, "screen")
     try {
         $sx = $bmp.Width / 960.0; $sy = $bmp.Height / 540.0
@@ -169,6 +170,14 @@ function Enter-DsrGame([int]$TimeoutSec = 180, [int]$SettleSec = 8) {
     throw "Did not reach gameplay within $TimeoutSec s."
 }
 
+# After triggering a warp: wait for the fade/load (Dark), then gameplay, then exposure settle.
+function Wait-DsrWarp([int]$TimeoutSec = 120, [int]$SettleSec = 8) {
+    if (-not (Wait-DsrState -States "Dark" -TimeoutSec 25)) { throw "warp: no loading screen seen" }
+    if (-not (Wait-DsrState -States "InGame" -TimeoutSec $TimeoutSec)) { throw "warp: did not return to gameplay" }
+    [void](Wait-DsrStable -StableSec 4 -Tolerance 2 -TimeoutSec 60)
+    Start-Sleep -Seconds $SettleSec
+}
+
 # In-game: System -> Quit Game -> OK (dialog defaults to CANCEL). Saves and returns to "press any button".
 function Exit-DsrToTitle {
     if ((Get-DsrState) -ne "InGame") { throw "Exit-DsrToTitle: not in game." }
@@ -213,4 +222,4 @@ function Invoke-DsrCapture([string]$OutDir, [string]$Name, [int]$GapMs = 900) {
 
 Export-ModuleMember -Function Get-DsrKeyMap, Test-DsrRunning, Assert-DsrSaveKnown, Start-Dsr, Get-DsrWindow,
     Send-DsrKey, Get-DsrShot, Wait-DsrStable, Stop-DsrHard, Get-FileSha, Get-DsrState, Wait-DsrState,
-    Enter-DsrGame, Exit-DsrToTitle, Close-DsrAtTitle, Invoke-DsrCapture
+    Enter-DsrGame, Exit-DsrToTitle, Close-DsrAtTitle, Invoke-DsrCapture, Wait-DsrWarp

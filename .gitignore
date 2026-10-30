@@ -12,3 +12,6 @@ captures/
 __pycache__/
 *.pyc
 tools/bin/
+
+# Extracted game values (regenerate with tools/extract.py)
+data/vanilla/
