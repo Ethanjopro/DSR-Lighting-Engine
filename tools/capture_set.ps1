@@ -45,7 +45,8 @@ try {
             $out = Join-Path $root "captures\$Run\$vname"
             $t0 = Get-Date
             try {
-                Invoke-GadgetWarp $b.name
+                # The first warp after a restart sometimes doesn't take ("bonfire selection did not stick"): retry once.
+                try { Invoke-GadgetWarp $b.name } catch { Write-Warning "$($b.slug)/${vname}: warp retry after: $_"; Start-Sleep 3; Invoke-GadgetWarp $b.name }
                 Wait-DsrWarp
                 $s = Invoke-DsrCapture -OutDir $out -Name $b.slug
                 $summary += [pscustomobject]@{ bonfire = $b.slug; variant = $vname; ev = $s.ev; p50 = $s.p50; clip = $s.clip_pct; crush = $s.crush_pct; sat = $s.mean_sat; secs = [int]((Get-Date) - $t0).TotalSeconds }

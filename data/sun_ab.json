@@ -1,0 +1,25 @@
+{
+  "_doc": "In-game A/B of the sun prototype (shaders/features/dsrle_features.fxh, DSRLE_SUN_A, gain 2, cap 0.6). Character-region (1650,880 560x1180 of 3840x2160) mean linear luminance change in EV. captures/sun1 (vanilla vs A/B, normal exposure, vanilla DrawParam) and captures/sun2 (one restart with sun_A, DrawParam with every LightBank/s_LightBank colA_s set to 0/30/58 white, exposure pinned at 0.18).",
+  "sun1_vanilla_drawparam": {
+    "anor_interior": {"A": 0.25, "B": 0.21, "note": "indoors: leak through the shadowed gate"},
+    "archives_balcony": {"A": 0.07, "B": 0.07},
+    "painted": {"A": 0.01, "B": 0.01},
+    "darkroot_garden": {"A": -0.08, "B": -0.16, "note": "bonfire flicker + auto exposure; character row colA_s 0"},
+    "firelink": {"A": 0.19, "B": 0.17, "note": "inconclusive: vanilla-vs-vanilla 0.18 EV"}
+  },
+  "sun2_pinned_exposure": {
+    "columns": ["s0 repeat (noise)", "s30", "s58"],
+    "parish": [0.10, 0.15, 0.19],
+    "firelink": [-0.30, 0.16, 0.05],
+    "painted": [0.00, 0.02, 0.05],
+    "darkroot_garden": [0.02, -0.01, 0.04],
+    "anor_interior": [-0.05, 0.07, 0.17],
+    "archives_balcony": [0.01, 0.02, 0.06]
+  },
+  "conclusions": [
+    "colA_s controls the sun per light row as designed; colA_s 0 removes the Anor Londo interior leak.",
+    "On characters the effect is view-dependent; from the bonfire camera (character's back) it is +0.05..0.2 EV at the cap.",
+    "Painted World: the sun mostly lands on Snow-family ground (no light map), which is already near white: clipped pixels 32.6% -> 34.3% at s58. Exclude Snow from the sun by default.",
+    "Firelink and Parish character regions are dominated by bonfire flicker; judge the sun from crops, not region means, there."
+  ]
+}

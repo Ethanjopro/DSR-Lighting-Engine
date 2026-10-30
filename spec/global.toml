@@ -37,8 +37,16 @@ abs = 40
 
 [[band]]
 bank = "LightBank"
-fields = ["envDif_colA", "envSpc_colA", "colA_s"]
+fields = ["envDif_colA", "envSpc_colA"]
 rel = [0.5, 1.5]
+
+[[band]]
+bank = "LightBank"
+fields = ["colA_s"]
+# colA_s is the sun-strength knob (shader carrier c6 = (col_s/255 * colA_s/100)^2.2; sun radiance = 2 x c6,
+# capped at 0.6 in the shader, reached at colA_s 58). 0 = no sun (interiors). Water specular follows it.
+# Vanilla values are water-specular settings, not sun intent (data/sun_ab.json), so this is a range, not a ratio.
+max = 60
 
 [[band]]
 bank = "ToneCorrectBank"
