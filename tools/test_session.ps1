@@ -20,8 +20,9 @@ if ((Get-FileSha $live) -ne $realSha) { throw "the live save is not the recorded
 if ((Get-FileSha $realBak) -ne $realSha) { throw "the real-save backup does not match the ledger" }
 if (-not (Test-Path $test)) { throw "no test save at $test" }
 & "$root\tools\restore_vanilla.ps1" | Out-Null
+Copy-Item $test (Join-Path $root "saves\backup\test_session_end.before-$(Get-Date -Format yyyyMMdd-HHmmss).sl2")
 Copy-Item $test $live -Force
-Write-Output "test save in; running session"
+Write-Output "test save in (previous copy kept in saves\backup); running session"
 
 try {
     & $Script

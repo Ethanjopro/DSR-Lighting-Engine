@@ -46,9 +46,15 @@ INT_TYPES = {"s8", "u8", "s16", "u16", "s32", "u32"}
 def load_specs(areas: list[str] | None = None) -> list[dict]:
     specs = []
     for path in sorted(SPEC_DIR.glob("*.toml")):
-        if areas and not any(path.read_text(encoding="utf-8").find(f'area = "{a}"') >= 0 for a in areas):
-            continue  # skip other areas' specs unparsed (they may be mid-edit by another author)
-        spec = tomllib.loads(path.read_text(encoding="utf-8"))
+        try:
+            spec = tomllib.loads(path.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError as e:
+            if areas:  # another author's spec may be mid-edit; only a full build must parse everything
+                print(f"skipped unparsable spec {path.name}: {e}")
+                continue
+            raise SystemExit(f"{path.name}: {e}")
+        if areas and spec.get("area") not in areas:
+            continue
         spec["_file"] = path.name
         if spec.get("area") not in AREAS:
             raise SystemExit(f"{path.name}: area must be one of {AREAS}")
