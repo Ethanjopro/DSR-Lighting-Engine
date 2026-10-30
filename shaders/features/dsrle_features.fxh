@@ -60,7 +60,10 @@
 //   light map, shadowed               -                        specular only, x baked mask
 //   unshadowed (with or without LIT)  -                        -
 //   ghost (Gst, WITH_GhostMap)        -                        -
+//   Snow (family or base)             -                        -     (/D DSRLE_SUN_ON_SNOW keeps it)
 //   Non / Water / Dif+Mul placeholder (DIRECT not wired)       -
+//   Snow is excluded because it has no light map and is already near white, so the sun
+//   mostly clips it (Painted World: clipped pixels 32.6% -> 34.3% at the cap, data/sun_ab.json).
 //   Ghosts are excluded because the FaceEye/HemEnv ghost path adds the ghost tint after
 //   DIRECT and saturates the result into it, so a sun turns a phantom opaque white.
 //   Sfx (FS_TRANSLUCENT) keeps the sun: its 240 entry points use the same permutation
@@ -107,6 +110,11 @@
 //   lever (envDif x2 = +0.5 to +1.2 EV). That term is not in this comparison, so gain and cap
 //   are a starting point to be calibrated by capture (sun_A vs off at 4-5 bonfires, dEV and
 //   clip on characters and props), not a derived value.
+//   SPEC-ONLY ROWS (runtime gate, c6 carrier only): a row whose largest c6 channel is above
+//   DSRLE_SUN_SPEC_ONLY (0.33, just above 0.6^2.2 = 0.325, i.e. a white colA_s above 60) gets no
+//   sun. Those rows (vanilla colA_s 100-600) are water and lava specular settings, not sun intent,
+//   so they keep their specular and get no sun without any DrawParam edit. spec/global.toml
+//   [sun] spec_only_above = 60 is the same cutoff. /D DSRLE_SUN_NO_SPEC_GATE removes the gate.
 //   Overrides: /D DSRLE_SUN_GAIN=x, /D DSRLE_SUN_MAX=x (float literals, e.g. 1.5f),
 //   /D DSRLE_SUN_UNCAPPED (no cap), /D DSRLE_SUN_MIN=x (floor on the largest channel, with a
 //   white hue where the carrier is 0, so colA_s 0 rows get a weak sun too; off by default
@@ -151,6 +159,16 @@
 
 #define DSRLE_SUN_RAW (DSRLE_SUN_CARRIER * DSRLE_SUN_GAIN)
 #define DSRLE_SUN_RAWMAX (max(max(DSRLE_SUN_RAW.r, DSRLE_SUN_RAW.g), DSRLE_SUN_RAW.b))
+
+// Spec-only rows: 0 where the c6 row is a water/lava specular setting (see GAIN AND CAP).
+#ifndef DSRLE_SUN_SPEC_ONLY
+	#define DSRLE_SUN_SPEC_ONLY 0.33f
+#endif
+#if defined(DSRLE_SUN_CARRIER_SCATTER) || defined(DSRLE_SUN_NO_SPEC_GATE)
+	#define DSRLE_SUN_ROW_GATE 1.0f
+#else
+	#define DSRLE_SUN_ROW_GATE ((max(max(gFC_SpcLightCol.r, gFC_SpcLightCol.g), gFC_SpcLightCol.b) <= (DSRLE_SUN_SPEC_ONLY)) ? 1.0f : 0.0f)
+#endif
 #if defined(DSRLE_SUN_MIN)
 	// hue of the carrier (white where it is 0), largest channel clamped to [MIN, MAX]
 	#ifdef DSRLE_SUN_UNCAPPED
@@ -191,7 +209,12 @@
 #define DSRLE_SUN_GEO(vertexNormal) smoothstep(0.0f, 0.1f, dot(normalize(vertexNormal), DSRLE_SUN_L))
 
 //---- compile-time gate ----------------------------------------------------------
-#define DSRLE_SUN_ELIGIBLE(flags) ((((flags) & DSRLE_VF_SHADOWED) != 0u) && (((flags) & DSRLE_VF_GHOST) == 0u))
+#ifdef DSRLE_SUN_ON_SNOW
+	#define DSRLE_SUN_NOT_SNOW(flags) (true)
+#else
+	#define DSRLE_SUN_NOT_SNOW(flags) ((((flags) & (DSRLE_VF_FAM_SNOW | DSRLE_VF_BASE_SNOW)) == 0u))
+#endif
+#define DSRLE_SUN_ELIGIBLE(flags) ((((flags) & DSRLE_VF_SHADOWED) != 0u) && (((flags) & DSRLE_VF_GHOST) == 0u) && DSRLE_SUN_NOT_SNOW(flags))
 // Diffuse: shadowed, not a ghost, no light map (both A and B).
 #define DSRLE_SUN_DIFFUSE_ON(flags) (DSRLE_SUN_ELIGIBLE(flags) && (((flags) & DSRLE_VF_LIT) == 0u))
 #ifdef DSRLE_SUN_B
@@ -215,7 +238,7 @@
 #define DSRLE_HOOK_DIRECT(N, V, worldPos, diffColor, f0, roughness, shadowRate, lightmap, flags, vertexNormal, svPos, specF90) \
 	(DSRLE_SUN_ON(flags) \
 		? (DSRLE_SUN_BRDF(N, V, diffColor, f0, roughness, specF90, flags) * DSRLE_SUN_VIS(shadowRate) \
-		   * (DSRLE_SUN_FADE * DSRLE_SUN_GEO(vertexNormal) * DSRLE_SUN_BAKED(lightmap, flags))) \
+		   * (DSRLE_SUN_FADE * DSRLE_SUN_GEO(vertexNormal) * DSRLE_SUN_BAKED(lightmap, flags) * DSRLE_SUN_ROW_GATE)) \
 		: float3(0.0f, 0.0f, 0.0f))
 
 #endif // DSRLE_SUN_A || DSRLE_SUN_B

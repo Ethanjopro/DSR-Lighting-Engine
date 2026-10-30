@@ -164,7 +164,8 @@ def predicted(mapping: dict, names: list[str], cfg: str) -> set[str]:
         shadowed = bool(re.search(r"Csd|Sdw|Ncs", ep))
         lit = "Lit" in ep
         ghost = "WITH_GhostMap" in mapping[n].get("wrapper_defines", [])
-        if shadowed and not ghost and (cfg == "B" or not lit):
+        snow = mapping[n]["family"] == "Snow"  # excluded from the sun unless DSRLE_SUN_ON_SNOW
+        if shadowed and not ghost and not snow and (cfg == "B" or not lit):
             out.add(n)
     return out
 
