@@ -1,0 +1,9 @@
+{
+ "_doc": "Filter census and filter identity check, session 4 (2026-10-30), captures/fcensus and captures/s4. Settings: DarkSouls.ini Antialiasing=3, AmbientOcclusion=1, DOF=1, Blur=1, 3840x2160. Decoder: shaders/tools/filter_census_decode.py (full report captures/s4/fcensus_decode.json).",
+ "tonemap": "FRPG_Fil_HDR_PBL_ColAdj runs at all 4 bonfires; HDR, HDR_ColAdj, HDR_PBL, HDR_Menu not selected.",
+ "final_aa": "ResolveTAA runs (strongest cast on screen; it compounds through the history, so the decoder's 'unclear' is a too-strong cast). FxAA2 / FxAA2_High not selected under Antialiasing=3.",
+ "ao": "compute SSAO (BlurUpsample chain) at 1 screen px per AO texel, levels [1, 2] (anor_interior, firelink); pixel SAO and compute SAO not selected.",
+ "fx": "Bloom entry active where bright sky is in view (firelink); LightShaft, SAO_Combine, Sfx_Glow_Blur not seen at these views.",
+ "filter_identity_rebuild": "fil_rebuild0 (35 entries rebuilt) vs vanilla in the same session: frame EV -0.003..-0.010, char within +-0.03 at 4 bonfires = identical within noise.",
+ "consequence": "Sharpening belongs in ResolveTAA (pre-tonemap, the 3x3 current-frame neighbourhood is already fetched) together with a Catmull-Rom history fetch; FXAA changes would have no effect at these settings."
+}
