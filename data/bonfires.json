@@ -1,48 +1,261 @@
-{
-  "_note": "Capture locations for A/B tests (DSR Gadget bonfire names). group = tuning group, area = DrawParam archive.",
-  "bonfires": [
-    {"name": "Undead Burg (Bonfire)", "slug": "burg", "group": "G1", "area": "a10"},
-    {"name": "Undead Parish (Bonfire)", "slug": "parish", "group": "G1", "area": "a10"},
-    {"name": "Undead Parish (Sunlight Altar Bonfire)", "slug": "parish_altar", "group": "G1", "area": "a10"},
-    {"name": "Firelink Shrine (Bonfire)", "slug": "firelink", "group": "G1", "area": "a10"},
-    {"name": "Depths (Bonfire)", "slug": "depths", "group": "G1", "area": "a10"},
-    {"name": "Depths (Gaping Dragon's Room)", "slug": "depths_dragon", "group": "G1", "area": "a10"},
-    {"name": "Painted World of Ariamis (Entrance)", "slug": "painted_entrance", "group": "G2", "area": "a11"},
-    {"name": "Painted World of Ariamis (Bonfire)", "slug": "painted", "group": "G2", "area": "a11"},
-    {"name": "Darkroot Garden (Bonfire)", "slug": "darkroot_garden", "group": "G2", "area": "a12"},
-    {"name": "Darkroot Basin (Bonfire)", "slug": "darkroot_basin", "group": "G2", "area": "a12"},
-    {"name": "Sanctuary Garden (Bonfire)", "slug": "sanctuary_garden", "group": "G2", "area": "a12"},
-    {"name": "Oolacile Sanctuary (Bonfire)", "slug": "oolacile_sanctuary", "group": "G2", "area": "a12"},
-    {"name": "Oolacile Township (Bonfire)", "slug": "oolacile_township", "group": "G2", "area": "a12"},
-    {"name": "Oolacile Township Dungeon (Bonfire)", "slug": "oolacile_dungeon", "group": "G2", "area": "a12"},
-    {"name": "Chasm of the Abyss (Manus)", "slug": "chasm_abyss", "group": "G2", "area": "a12"},
-    {"name": "The Catacombs (Entrance)", "slug": "catacombs_entrance", "group": "G3", "area": "a13"},
-    {"name": "The Catacombs (Bonfire #1)", "slug": "catacombs", "group": "G3", "area": "a13"},
-    {"name": "Tomb of the Giants (Bonfire #1)", "slug": "tomb_1", "group": "G3", "area": "a13"},
-    {"name": "Tomb of the Giants (Bonfire #2)", "slug": "tomb_2", "group": "G3", "area": "a13"},
-    {"name": "Great Hollow (Bonfire)", "slug": "great_hollow", "group": "G3", "area": "a13"},
-    {"name": "Ash Lake (Bonfire #1)", "slug": "ash_lake", "group": "G3", "area": "a13"},
-    {"name": "Blighttown (Bridge Bonfire)", "slug": "blighttown_bridge", "group": "G3", "area": "a14"},
-    {"name": "Blighttown (Swamp Bonfire)", "slug": "blighttown_swamp", "group": "G3", "area": "a14"},
-    {"name": "Quelaag's Domain (Bonfire)", "slug": "quelaag", "group": "G3", "area": "a14"},
-    {"name": "Demon Ruins (Bonfire #1)", "slug": "demon_ruins_1", "group": "G3", "area": "a14"},
-    {"name": "Demon Ruins (Bonfire #3)", "slug": "demon_ruins_3", "group": "G3", "area": "a14"},
-    {"name": "Lost Izalith (Bonfire #1)", "slug": "izalith_1", "group": "G3", "area": "a14"},
-    {"name": "Lost Izalith (Bonfire #2)", "slug": "izalith_2", "group": "G3", "area": "a14"},
-    {"name": "Sen's Fortress (Bonfire)", "slug": "sens", "group": "G4", "area": "a15"},
-    {"name": "Sen's Fortress (Bridge, #1)", "slug": "sens_bridge", "group": "G4", "area": "a15"},
-    {"name": "Anor Londo (Entrance)", "slug": "anor_entrance", "group": "G4", "area": "a15"},
-    {"name": "Anor Londo (Interior Bonfire)", "slug": "anor_interior", "group": "G4", "area": "a15"},
-    {"name": "Anor Londo (Gwynevere Bonfire)", "slug": "anor_gwynevere", "group": "G4", "area": "a15"},
-    {"name": "New Londo Ruins (Entrance)", "slug": "new_londo", "group": "G5", "area": "a16"},
-    {"name": "New Londo Ruins (Pre-Ingward)", "slug": "new_londo_ingward", "group": "G5", "area": "a16"},
-    {"name": "Abyss (Bonfire)", "slug": "abyss", "group": "G5", "area": "a16"},
-    {"name": "The Duke's Archives (Elevator Bonfire)", "slug": "archives_elevator", "group": "G5", "area": "a17"},
-    {"name": "The Duke's Archives (Balcony Bonfire)", "slug": "archives_balcony", "group": "G5", "area": "a17"},
-    {"name": "Crystal Cave (Seath)", "slug": "crystal_cave", "group": "G5", "area": "a17"},
-    {"name": "Kiln of the First Flame (Entrance)", "slug": "kiln_entrance", "group": "G5", "area": "a18"},
-    {"name": "Kiln of the First Flame (Gwyn)", "slug": "kiln_gwyn", "group": "G5", "area": "a18"},
-    {"name": "Northern Undead Asylum (Bonfire #1)", "slug": "asylum_1", "group": "G5", "area": "a18"},
-    {"name": "Northern Undead Asylum (Bonfire #2)", "slug": "asylum_2", "group": "G5", "area": "a18"}
-  ]
+﻿{
+    "_note":  "Capture locations for A/B tests (DSR Gadget bonfire names). group = tuning group, area = DrawParam archive.",
+    "bonfires":  [
+                     {
+                         "name":  "Undead Burg (Bonfire)",
+                         "slug":  "burg",
+                         "group":  "G1",
+                         "area":  "a10"
+                     },
+                     {
+                         "name":  "Undead Parish (Bonfire)",
+                         "slug":  "parish",
+                         "group":  "G1",
+                         "area":  "a10"
+                     },
+                     {
+                         "name":  "Undead Parish (Sunlight Altar Bonfire)",
+                         "slug":  "parish_altar",
+                         "group":  "G1",
+                         "area":  "a10"
+                     },
+                     {
+                         "name":  "Firelink Shrine (Bonfire)",
+                         "slug":  "firelink",
+                         "group":  "G1",
+                         "area":  "a10"
+                     },
+                     {
+                         "name":  "Depths (Bonfire)",
+                         "slug":  "depths",
+                         "group":  "G1",
+                         "area":  "a10"
+                     },
+                     {
+                         "name":  "Depths (Gaping Dragon\u0027s Room)",
+                         "slug":  "depths_dragon",
+                         "group":  "G1",
+                         "area":  "a10"
+                     },
+                     {
+                         "name":  "Painted World of Ariamis (Entrance)",
+                         "slug":  "painted_entrance",
+                         "group":  "G2",
+                         "area":  "a11"
+                     },
+                     {
+                         "name":  "Painted World of Ariamis (Bonfire)",
+                         "slug":  "painted",
+                         "group":  "G2",
+                         "area":  "a11"
+                     },
+                     {
+                         "name":  "Darkroot Garden (Bonfire)",
+                         "slug":  "darkroot_garden",
+                         "group":  "G2",
+                         "area":  "a12"
+                     },
+                     {
+                         "name":  "Darkroot Basin (Bonfire)",
+                         "slug":  "darkroot_basin",
+                         "group":  "G2",
+                         "area":  "a12"
+                     },
+                     {
+                         "name":  "Sanctuary Garden (Bonfire)",
+                         "slug":  "sanctuary_garden",
+                         "group":  "G2",
+                         "area":  "a12"
+                     },
+                     {
+                         "name":  "Oolacile Sanctuary (Bonfire)",
+                         "slug":  "oolacile_sanctuary",
+                         "group":  "G2",
+                         "area":  "a12"
+                     },
+                     {
+                         "name":  "Oolacile Township (Bonfire)",
+                         "slug":  "oolacile_township",
+                         "group":  "G2",
+                         "area":  "a12"
+                     },
+                     {
+                         "name":  "Oolacile Township Dungeon (Bonfire)",
+                         "slug":  "oolacile_dungeon",
+                         "group":  "G2",
+                         "area":  "a12"
+                     },
+                     {
+                         "name":  "The Catacombs (Entrance)",
+                         "slug":  "catacombs_entrance",
+                         "group":  "G3",
+                         "area":  "a13"
+                     },
+                     {
+                         "name":  "The Catacombs (Bonfire #1)",
+                         "slug":  "catacombs",
+                         "group":  "G3",
+                         "area":  "a13"
+                     },
+                     {
+                         "name":  "Tomb of the Giants (Bonfire #1)",
+                         "slug":  "tomb_1",
+                         "group":  "G3",
+                         "area":  "a13"
+                     },
+                     {
+                         "name":  "Tomb of the Giants (Bonfire #2)",
+                         "slug":  "tomb_2",
+                         "group":  "G3",
+                         "area":  "a13"
+                     },
+                     {
+                         "name":  "Great Hollow (Bonfire)",
+                         "slug":  "great_hollow",
+                         "group":  "G3",
+                         "area":  "a13"
+                     },
+                     {
+                         "name":  "Ash Lake (Bonfire #1)",
+                         "slug":  "ash_lake",
+                         "group":  "G3",
+                         "area":  "a13"
+                     },
+                     {
+                         "name":  "Blighttown (Bridge Bonfire)",
+                         "slug":  "blighttown_bridge",
+                         "group":  "G3",
+                         "area":  "a14"
+                     },
+                     {
+                         "name":  "Blighttown (Swamp Bonfire)",
+                         "slug":  "blighttown_swamp",
+                         "group":  "G3",
+                         "area":  "a14"
+                     },
+                     {
+                         "name":  "Quelaag\u0027s Domain (Bonfire)",
+                         "slug":  "quelaag",
+                         "group":  "G3",
+                         "area":  "a14"
+                     },
+                     {
+                         "name":  "Demon Ruins (Bonfire #1)",
+                         "slug":  "demon_ruins_1",
+                         "group":  "G3",
+                         "area":  "a14"
+                     },
+                     {
+                         "name":  "Demon Ruins (Bonfire #3)",
+                         "slug":  "demon_ruins_3",
+                         "group":  "G3",
+                         "area":  "a14"
+                     },
+                     {
+                         "name":  "Lost Izalith (Bonfire #1)",
+                         "slug":  "izalith_1",
+                         "group":  "G3",
+                         "area":  "a14"
+                     },
+                     {
+                         "name":  "Lost Izalith (Bonfire #2)",
+                         "slug":  "izalith_2",
+                         "group":  "G3",
+                         "area":  "a14"
+                     },
+                     {
+                         "name":  "Sen\u0027s Fortress (Bonfire)",
+                         "slug":  "sens",
+                         "group":  "G4",
+                         "area":  "a15"
+                     },
+                     {
+                         "name":  "Sen\u0027s Fortress (Bridge, #1)",
+                         "slug":  "sens_bridge",
+                         "group":  "G4",
+                         "area":  "a15"
+                     },
+                     {
+                         "name":  "Anor Londo (Entrance)",
+                         "slug":  "anor_entrance",
+                         "group":  "G4",
+                         "area":  "a15"
+                     },
+                     {
+                         "name":  "Anor Londo (Interior Bonfire)",
+                         "slug":  "anor_interior",
+                         "group":  "G4",
+                         "area":  "a15"
+                     },
+                     {
+                         "name":  "Anor Londo (Gwynevere Bonfire)",
+                         "slug":  "anor_gwynevere",
+                         "group":  "G4",
+                         "area":  "a15"
+                     },
+                     {
+                         "name":  "New Londo Ruins (Entrance)",
+                         "slug":  "new_londo",
+                         "group":  "G5",
+                         "area":  "a16"
+                     },
+                     {
+                         "name":  "New Londo Ruins (Pre-Ingward)",
+                         "slug":  "new_londo_ingward",
+                         "group":  "G5",
+                         "area":  "a16"
+                     },
+                     {
+                         "name":  "The Duke\u0027s Archives (Elevator Bonfire)",
+                         "slug":  "archives_elevator",
+                         "group":  "G5",
+                         "area":  "a17"
+                     },
+                     {
+                         "name":  "The Duke\u0027s Archives (Balcony Bonfire)",
+                         "slug":  "archives_balcony",
+                         "group":  "G5",
+                         "area":  "a17"
+                     },
+                     {
+                         "name":  "Crystal Cave (Seath)",
+                         "slug":  "crystal_cave",
+                         "group":  "G5",
+                         "area":  "a17"
+                     },
+                     {
+                         "name":  "Kiln of the First Flame (Entrance)",
+                         "slug":  "kiln_entrance",
+                         "group":  "G5",
+                         "area":  "a18"
+                     },
+                     {
+                         "name":  "Kiln of the First Flame (Gwyn)",
+                         "slug":  "kiln_gwyn",
+                         "group":  "G5",
+                         "area":  "a18"
+                     },
+                     {
+                         "name":  "Northern Undead Asylum (Bonfire #1)",
+                         "slug":  "asylum_1",
+                         "group":  "G5",
+                         "area":  "a18"
+                     },
+                     {
+                         "name":  "Northern Undead Asylum (Bonfire #2)",
+                         "slug":  "asylum_2",
+                         "group":  "G5",
+                         "area":  "a18"
+                     }
+                 ],
+    "skipped":  [
+                    {
+                        "name":  "Abyss (Bonfire)",
+                        "reason":  "kills the character on arrival without the Covenant of Artorias"
+                    },
+                    {
+                        "name":  "Chasm of the Abyss (Manus)",
+                        "reason":  "lands in the Manus boss fight; character dies"
+                    }
+                ]
 }
