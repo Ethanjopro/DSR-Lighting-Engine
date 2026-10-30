@@ -4,7 +4,7 @@ Checks: file allowlist, immutable fields, paramdef limits, rule bands, readabili
 char rows and same-ID s_LightBank rows), slot-1 mirroring where slot 1 == slot 0 in vanilla, no-op edits,
 declared 0 -> nonzero colA edits, shadow fade scaling with endDist, and a sun decision for every live row.
 
-Usage: python tools/validate.py [--dist dist]
+Usage: python tools/validate.py [--dist dist] [--areas a10,a11]
 """
 from __future__ import annotations
 
@@ -51,7 +51,10 @@ def ratio(new, old):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dist", default=str(ROOT / "dist"))
-    dist = Path(ap.parse_args().dist)
+    ap.add_argument("--areas", help="comma-separated areas to check (default: all)")
+    args = ap.parse_args()
+    dist = Path(args.dist)
+    only = args.areas.split(",") if args.areas else AREAS
     rules = tomllib.loads((ROOT / "spec" / "global.toml").read_text(encoding="utf-8"))
     errors, warnings = [], []
 
@@ -71,7 +74,7 @@ def main() -> int:
             warnings.append(f"no-op edit in {key[0]}: {key[2]}.{key[3]} op arg {key[4]} changes nothing")
 
     sun_rules = rules.get("sun", {})
-    for area in AREAS:
+    for area in only:
         path = dist / "param" / "DrawParam" / f"{area}_DrawParam.parambnd.dcx"
         if not path.exists():
             if sun_rules.get("decisions_required"):

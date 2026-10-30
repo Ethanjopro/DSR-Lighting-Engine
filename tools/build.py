@@ -27,7 +27,7 @@ Spec format (one file per map block or area, any name, e.g. spec/areas/m10_02_fi
 Integer fields are rounded; every result is clamped to the paramdef min/max.
 Writes dist/param/DrawParam/aXX_DrawParam.parambnd.dcx for edited areas and dist/build_manifest.json.
 
-Usage: python tools/build.py [--out dist]
+Usage: python tools/build.py [--out dist] [--areas a10,a11]   (--areas: build only those areas' specs)
 """
 from __future__ import annotations
 
@@ -43,9 +43,11 @@ SPEC_DIR = ROOT / "spec" / "areas"
 INT_TYPES = {"s8", "u8", "s16", "u16", "s32", "u32"}
 
 
-def load_specs() -> list[dict]:
+def load_specs(areas: list[str] | None = None) -> list[dict]:
     specs = []
     for path in sorted(SPEC_DIR.glob("*.toml")):
+        if areas and not any(path.read_text(encoding="utf-8").find(f'area = "{a}"') >= 0 for a in areas):
+            continue  # skip other areas' specs unparsed (they may be mid-edit by another author)
         spec = tomllib.loads(path.read_text(encoding="utf-8"))
         spec["_file"] = path.name
         if spec.get("area") not in AREAS:
@@ -94,12 +96,14 @@ def bnd_area(bnd) -> str:
     return "a" + bnd.map_area[1:]
 
 
-def build(out_dir: Path) -> list[dict]:
-    specs = load_specs()
+def build(out_dir: Path, areas: list[str] | None = None) -> list[dict]:
+    specs = load_specs(areas)
     manifest: list[dict] = []
     drawparam_out = out_dir / "param" / "DrawParam"
     drawparam_out.mkdir(parents=True, exist_ok=True)
     for area in AREAS:
+        if areas and area not in areas:
+            continue
         area_specs = [s for s in specs if s["area"] == area]
         target = drawparam_out / f"{area}_DrawParam.parambnd.dcx"
         if not area_specs:
@@ -121,8 +125,9 @@ def build(out_dir: Path) -> list[dict]:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(ROOT / "dist"))
+    ap.add_argument("--areas", help="comma-separated areas to build (default: all)")
     args = ap.parse_args()
-    manifest = build(Path(args.out))
+    manifest = build(Path(args.out), args.areas.split(",") if args.areas else None)
     areas = sorted({m["area"] for m in manifest})
     print(f"built {len(manifest)} field changes in {len(areas)} area(s): {', '.join(areas) or 'none'}")
 
