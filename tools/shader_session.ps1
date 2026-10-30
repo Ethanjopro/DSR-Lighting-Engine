@@ -3,10 +3,13 @@
 # then capture the given bonfires via capture_set.ps1. Vanilla files are restored at the end (game left running).
 #
 #   .\tools\shader_session.ps1 -Run shader1 -Variants dist\_shader\rebuild0,dist\_shader\gentint -Only firelink,parish
+# -CaptureVariants: capture these folders (e.g. shader + DrawParam run folders) instead of the shader variant
+# itself; capture_set cycles them by warping within the one restart (see dist\_probe\capture_plan.ps1).
 param(
     [Parameter(Mandatory)] [string]$Run,
     [Parameter(Mandatory)] [string[]]$Variants,
-    [Parameter(Mandatory)] [string[]]$Only
+    [Parameter(Mandatory)] [string[]]$Only,
+    [string[]]$CaptureVariants
 )
 $root = Split-Path -Parent $PSScriptRoot
 $game = "C:\Program Files (x86)\Steam\steamapps\common\DARK SOULS REMASTERED"
@@ -47,7 +50,8 @@ try {
             continue
         }
         # capture_set reinstalls the same files while running (harmless: shaders are not re-read) and restores at the end.
-        & "$root\tools\capture_set.ps1" -Run "$Run\$(Split-Path -Leaf $v)" -Variants $v -Only $Only
+        $cap = if ($CaptureVariants) { $CaptureVariants } else { @($v) }
+        & "$root\tools\capture_set.ps1" -Run "$Run\$(Split-Path -Leaf $v)" -Variants $cap -Only $Only
     }
 } finally {
     & "$root\tools\restore_vanilla.ps1" | Out-Null
