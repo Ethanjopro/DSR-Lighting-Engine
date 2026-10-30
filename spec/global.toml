@@ -20,6 +20,8 @@ DofBank = ["*"]
 bank = "LightBank"
 fields = ["colA_0", "colA_1", "colA_2"]
 rows = "map"            # rows used by map pieces/objects (lightmaps baked against these)
+# Vanilla 421b shaders ignore dir lights entirely (sweep: colA_0 x2 = no change). The band stays because the
+# sun prototype may read these rows; rotations stay immutable so a runtime sun agrees with baked shadows.
 rel = [0.8, 1.2]
 
 [[band]]
@@ -41,7 +43,7 @@ rel = [0.5, 1.5]
 [[band]]
 bank = "ToneCorrectBank"
 fields = ["contrastR", "contrastG", "contrastB"]
-abs = 0.10
+abs = 0.03              # sweep: +0.10 gave -0.5..-2.9 EV and heavy crush (data/sweep_sensitivity.json)
 
 [[band]]
 bank = "ToneCorrectBank"
@@ -61,7 +63,7 @@ rel = [0.7, 1.3]
 [[band]]
 bank = "ToneMapBank"
 fields = ["minAdaptedLum"]
-rel = [0.5, 3.0]
+rel = [0.6, 1.4]        # sweep: x3 gave -1.0..-4.4 EV
 
 [[band]]
 bank = "ToneMapBank"
@@ -95,8 +97,11 @@ abs = 40
 
 # --- Readability floor ---------------------------------------------------------------------
 # Darkest-scene exposure cap ~ grayKeyValue / minAdaptedLum. Never more than this many EV below vanilla's cap.
+# The plain ratio underestimates the on-screen effect: minAdaptedLum x3 (1.58 EV by ratio) measured up to
+# 4.37 EV in Undead Parish, so the predicted drop is multiplied by model_gain (worst measured case).
 [readability]
 max_ev_below_vanilla = 1.0
+model_gain = 2.8
 
 # --- Lockstep ------------------------------------------------------------------------------
 [lockstep]

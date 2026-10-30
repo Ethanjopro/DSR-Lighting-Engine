@@ -106,7 +106,7 @@ def main() -> int:
                 if bank == "ToneMapBank" and ("grayKeyValue" in diff or "minAdaptedLum" in diff):
                     cap_v = vv["grayKeyValue"] / max(vv["minAdaptedLum"], 1e-6)
                     cap_m = mv["grayKeyValue"] / max(mv["minAdaptedLum"], 1e-6)
-                    ev_drop = math.log2(cap_v / max(cap_m, 1e-9))
+                    ev_drop = math.log2(cap_v / max(cap_m, 1e-9)) * rules["readability"].get("model_gain", 1.0)
                     if ev_drop > rules["readability"]["max_ev_below_vanilla"] + 1e-6:
                         errors.append(f"readability floor: {area} ToneMap[{rid}] s{slot} dark-scene cap {ev_drop:.2f} EV below vanilla")
 
