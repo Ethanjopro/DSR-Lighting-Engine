@@ -30,15 +30,16 @@
 //   mask changes. So the vanilla vertex shaders still link (checked on FRPG_Phn_Dif________________Non).
 //
 // SUN DATA AVAILABLE TO A HOOK (421b $Globals, the same layout in every blob)
+//   Confirmed by the in-game probe (data/probe_constants.json). The engine binds by fixed
+//   offset, not by name, and never uploads the LightBank directional lights (colA/colR/degRot _0.._2).
 //   gFC_ShadowLightDir  c73   xyz = sun (shadow light) PROPAGATION direction, so L = -xyz. Source:
-//                             ShadowBank lightDegRotX/Y (matched by name; check in game). Read by every
-//                             shadowed variant (normal-offset term dot(gFC_ShadowLightDir, N)). Whether the
-//                             engine also fills it for unshadowed draws is not yet checked.
+//                             ShadowBank lightDegRotX/Y (not LightBank dir 0). The same value for
+//                             every draw in the frame, shadowed or not.
 //   gFC_LsLightDir      c20   light-scattering sun direction (LightScatteringBank sunRotX/Y), w = distanceMul.
 //                             Read by every blob. Interior banks use rotX = 90 (straight down).
-//   gFC_LsSunColor      c19   scattering sun colour rgb, a = blend (sunR/G/B/A)
-//   gFC_SpcLightVec/Col c5/c6 "specular light", presumably LightBank degRot*_s / col*_s (matched by name;
-//                             check in game). Only Water reads them in 421b, so they could carry a
+//   gFC_LsSunColor      c19   scattering sun colour rgb (linear), a = blend (sunR/G/B/A)
+//   gFC_SpcLightVec/Col c5/c6 LightBank degRotX/Y_s and pow(col*_s/255 * colA_s/100, 2.2), per map-piece
+//                             light row. Only Water reads them in 421b, so they can carry a
 //                             per-area sun to every other shader.
 //   gFC_ShadowMapMtxArray c40..c55, gFC_ShadowMapClamp c56..c59, gFC_ShadowStartDist c23,
 //   gFC_ShadowMapParam c21, gFC_ShadowColor c22: shadow lookups (Csd/Sdw/Ncs only).

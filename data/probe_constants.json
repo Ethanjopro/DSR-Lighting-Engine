@@ -1,0 +1,22 @@
+{
+  "_doc": "In-game cbuffer probe, 2026-10-30 (captures/probe1, shaders/tools/probe_decode.py). Which DrawParam fields reach which 421b $Globals register of the FlverPBL pixel shaders. Bonfires: parish, firelink. Exposure pinned by dp_fixed.",
+  "binding": {
+    "result": "fixed offset, not by name",
+    "evidence": "probe_name declared gFC_DirLightVec/Col and DL_FREG_092..097 at c400..c411: always zero. c352..c367, c396..c415 and cbuffer slots b2..b5 were zero in every run."
+  },
+  "directional_lights": {
+    "result": "not uploaded to FlverPBL pixel shaders",
+    "evidence": "dp_key0 (colA_0 = 0), dp_key4red (colA_0 x4, red) and dp_keyrot (degRotX/Y_0 rotated) changed no readable register in c0..c102 at either bonfire. Unreadable in those runs: c13 (gFC_LsBeta1PlusBeta2), c16.z, c20.yz, c22.x, c63/c64 (view-projection) and c66.zw (unnamed padding)."
+  },
+  "registers": {
+    "c5": {"name": "gFC_SpcLightVec", "source": "LightBank degRotX_s / degRotY_s", "formula": "(cos X sin Y, -sin X, cos X cos Y)", "check": "rot 30/30 -> (0.433, -0.5, 0.75); dp_spc rotated -> (0.433, 0.866, -0.25)"},
+    "c6": {"name": "gFC_SpcLightCol", "source": "LightBank colR/G/B_s, colA_s", "formula": "pow(col/255 * colA/100, 2.2)", "check": "colA 50 white -> 0.2176 = 0.5^2.2; dp_spc colA 400 red -> (21.11, 0, 0) = 4^2.2"},
+    "c7": {"name": "gFC_HemAmbCol_u", "source": "LightBank colA_u / col*_u", "check": "dp_amb2 at parish: 0.187 -> 0.860 (x4.6 for colA x2, consistent with 2^2.2)"},
+    "c8": {"name": "gFC_HemAmbCol_d", "source": "LightBank colA_d / col*_d", "check": "dp_amb2 at parish: 0.106 -> 0.488. At firelink two light rows were on screen, so c7/c8 copies disagreed (unreadable there)."},
+    "c19": {"name": "gFC_LsSunColor", "source": "LightScatteringBank sunR/G/B/A", "formula": "rgb linear, about col/255 * sunA-derived scale", "check": "dp_scatter at firelink -> (12.0, 1.88, 0.0) for sun (255, 40, 0)"},
+    "c20": {"name": "gFC_LsLightDir", "source": "LightScatteringBank sunRotX/Y", "check": "dp_scatter changed c20.z at parish"},
+    "c23": {"name": "gFC_ShadowStartDist", "source": "ShadowBank (cascade splits)"},
+    "c40_c55": {"name": "gFC_ShadowMapMtxArray[4]", "source": "ShadowBank lightDegRotX/Y + camera"},
+    "c73": {"name": "gFC_ShadowLightDir", "source": "ShadowBank lightDegRotX/Y (not LightBank dir 0: dp_keyrot left it unchanged)", "check": "dp_shadowrot at firelink (0.220, -0.766, -0.604) -> (-0.720, 0.643, -0.262); parish (-0.084, -0.966, 0.245) -> (0.913, 0.259, 0.314). Consistent across all draws (no copy conflict)."}
+  }
+}
