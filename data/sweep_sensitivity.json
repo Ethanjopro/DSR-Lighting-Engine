@@ -1,0 +1,366 @@
+{
+ "ambient_x2": {
+  "firelink": {
+   "dEV": 0.581,
+   "dClip": 0.13,
+   "dCrush": 0.0,
+   "dSat": 0.018
+  },
+  "parish": {
+   "dEV": 2.051,
+   "dClip": 0.29,
+   "dCrush": -4.66,
+   "dSat": -0.056
+  },
+  "anor_interior": {
+   "dEV": 0.918,
+   "dClip": 0.48,
+   "dCrush": -0.14,
+   "dSat": -0.204
+  },
+  "archives_balcony": {
+   "dEV": 0.676,
+   "dClip": 15.36,
+   "dCrush": 0.0,
+   "dSat": 0.008
+  }
+ },
+ "bloom_x2": {
+  "firelink": {
+   "dEV": 0.122,
+   "dClip": 0.54,
+   "dCrush": 0.0,
+   "dSat": -0.009
+  },
+  "parish": {
+   "dEV": 0.024,
+   "dClip": 0.04,
+   "dCrush": -0.15,
+   "dSat": 0.0
+  },
+  "anor_interior": {
+   "dEV": -0.0,
+   "dClip": 0.02,
+   "dCrush": 0.01,
+   "dSat": -0.0
+  },
+  "archives_balcony": {
+   "dEV": 0.002,
+   "dClip": 0.02,
+   "dCrush": 0.0,
+   "dSat": 0.0
+  }
+ },
+ "contrast_+0.1": {
+  "firelink": {
+   "dEV": -0.66,
+   "dClip": -0.03,
+   "dCrush": 0.09,
+   "dSat": 0.169
+  },
+  "parish": {
+   "dEV": -2.902,
+   "dClip": -0.05,
+   "dCrush": 20.91,
+   "dSat": 0.086
+  },
+  "anor_interior": {
+   "dEV": -1.21,
+   "dClip": -0.14,
+   "dCrush": 3.52,
+   "dSat": 0.216
+  },
+  "archives_balcony": {
+   "dEV": -0.495,
+   "dClip": -0.47,
+   "dCrush": 0.36,
+   "dSat": 0.062
+  }
+ },
+ "envdif_x2": {
+  "firelink": {
+   "dEV": 0.509,
+   "dClip": 0.93,
+   "dCrush": 0.0,
+   "dSat": -0.0
+  },
+  "parish": {
+   "dEV": 1.175,
+   "dClip": 3.02,
+   "dCrush": -2.43,
+   "dSat": -0.033
+  },
+  "anor_interior": {
+   "dEV": 0.597,
+   "dClip": 0.87,
+   "dCrush": -0.04,
+   "dSat": -0.031
+  },
+  "archives_balcony": {
+   "dEV": 0.807,
+   "dClip": 28.54,
+   "dCrush": 0.0,
+   "dSat": -0.037
+  }
+ },
+ "envspc_x2": {
+  "firelink": {
+   "dEV": -0.082,
+   "dClip": 0.05,
+   "dCrush": 0.0,
+   "dSat": 0.012
+  },
+  "parish": {
+   "dEV": 0.353,
+   "dClip": 0.33,
+   "dCrush": -1.48,
+   "dSat": -0.067
+  },
+  "anor_interior": {
+   "dEV": 0.052,
+   "dClip": 0.15,
+   "dCrush": -0.06,
+   "dSat": -0.011
+  },
+  "archives_balcony": {
+   "dEV": 0.056,
+   "dClip": 0.57,
+   "dCrush": 0.0,
+   "dSat": -0.004
+  }
+ },
+ "fog_x1.6": {
+  "firelink": {
+   "dEV": 0.247,
+   "dClip": 1.17,
+   "dCrush": 0.0,
+   "dSat": -0.074
+  },
+  "parish": {
+   "dEV": 0.038,
+   "dClip": -0.09,
+   "dCrush": -0.4,
+   "dSat": -0.007
+  },
+  "anor_interior": {
+   "dEV": 0.104,
+   "dClip": -0.19,
+   "dCrush": -0.13,
+   "dSat": -0.019
+  },
+  "archives_balcony": {
+   "dEV": -0.069,
+   "dClip": -0.02,
+   "dCrush": 0.0,
+   "dSat": 0.007
+  }
+ },
+ "graykey_x1.5": {
+  "firelink": {
+   "dEV": 0.611,
+   "dClip": 2.13,
+   "dCrush": 0.0,
+   "dSat": -0.015
+  },
+  "parish": {
+   "dEV": 1.026,
+   "dClip": 0.97,
+   "dCrush": -3.16,
+   "dSat": -0.072
+  },
+  "anor_interior": {
+   "dEV": 0.69,
+   "dClip": 2.85,
+   "dCrush": -0.11,
+   "dSat": -0.056
+  },
+  "archives_balcony": {
+   "dEV": 0.456,
+   "dClip": 8.66,
+   "dCrush": 0.0,
+   "dSat": -0.01
+  }
+ },
+ "key_char_x2": {
+  "firelink": {
+   "dEV": -0.039,
+   "dClip": -0.0,
+   "dCrush": 0.0,
+   "dSat": 0.006
+  },
+  "parish": {
+   "dEV": 0.007,
+   "dClip": -0.01,
+   "dCrush": 0.01,
+   "dSat": -0.001
+  },
+  "anor_interior": {
+   "dEV": -0.0,
+   "dClip": 0.05,
+   "dCrush": 0.0,
+   "dSat": -0.0
+  },
+  "archives_balcony": {
+   "dEV": 0.002,
+   "dClip": 0.01,
+   "dCrush": 0.0,
+   "dSat": -0.0
+  }
+ },
+ "key_map_x2": {
+  "firelink": {
+   "dEV": -0.029,
+   "dClip": -0.05,
+   "dCrush": 0.0,
+   "dSat": 0.001
+  },
+  "parish": {
+   "dEV": 0.025,
+   "dClip": 0.07,
+   "dCrush": -0.07,
+   "dSat": -0.0
+  },
+  "anor_interior": {
+   "dEV": -0.002,
+   "dClip": -0.0,
+   "dCrush": 0.01,
+   "dSat": -0.0
+  },
+  "archives_balcony": {
+   "dEV": 0.001,
+   "dClip": -0.0,
+   "dCrush": 0.0,
+   "dSat": -0.0
+  }
+ },
+ "maxlum_x0.5": {
+  "firelink": {
+   "dEV": 0.098,
+   "dClip": 0.04,
+   "dCrush": 0.0,
+   "dSat": -0.016
+  },
+  "parish": {
+   "dEV": 0.015,
+   "dClip": -0.0,
+   "dCrush": -0.05,
+   "dSat": 0.0
+  },
+  "anor_interior": {
+   "dEV": 0.001,
+   "dClip": 0.17,
+   "dCrush": 0.01,
+   "dSat": 0.0
+  },
+  "archives_balcony": {
+   "dEV": 0.0,
+   "dClip": -0.0,
+   "dCrush": 0.0,
+   "dSat": 0.0
+  }
+ },
+ "minlum_x3": {
+  "firelink": {
+   "dEV": -1.239,
+   "dClip": -1.88,
+   "dCrush": 0.02,
+   "dSat": 0.121
+  },
+  "parish": {
+   "dEV": -4.373,
+   "dClip": -0.95,
+   "dCrush": 27.83,
+   "dSat": 0.111
+  },
+  "anor_interior": {
+   "dEV": -2.126,
+   "dClip": -1.94,
+   "dCrush": 2.15,
+   "dSat": 0.26
+  },
+  "archives_balcony": {
+   "dEV": -1.038,
+   "dClip": -9.98,
+   "dCrush": 0.0,
+   "dSat": 0.001
+  }
+ },
+ "scatter_x2": {
+  "firelink": {
+   "dEV": 0.268,
+   "dClip": 2.53,
+   "dCrush": 0.0,
+   "dSat": 0.061
+  },
+  "parish": {
+   "dEV": 0.735,
+   "dClip": 0.0,
+   "dCrush": -3.07,
+   "dSat": -0.156
+  },
+  "anor_interior": {
+   "dEV": 0.025,
+   "dClip": 0.04,
+   "dCrush": -0.01,
+   "dSat": -0.006
+  },
+  "archives_balcony": {
+   "dEV": 0.438,
+   "dClip": 5.42,
+   "dCrush": 0.0,
+   "dSat": -0.013
+  }
+ },
+ "shadow_end_x2": {
+  "firelink": {
+   "dEV": -0.122,
+   "dClip": -0.01,
+   "dCrush": 0.0,
+   "dSat": 0.015
+  },
+  "parish": {
+   "dEV": 0.024,
+   "dClip": 0.03,
+   "dCrush": -0.08,
+   "dSat": 0.0
+  },
+  "anor_interior": {
+   "dEV": 0.003,
+   "dClip": 0.18,
+   "dCrush": 0.02,
+   "dSat": -0.0
+  },
+  "archives_balcony": {
+   "dEV": 0.002,
+   "dClip": 0.02,
+   "dCrush": 0.0,
+   "dSat": -0.0
+  }
+ },
+ "shaft_0.08": {
+  "firelink": {
+   "dEV": -0.062,
+   "dClip": -0.55,
+   "dCrush": 0.0,
+   "dSat": 0.005
+  },
+  "parish": {
+   "dEV": 0.021,
+   "dClip": 0.03,
+   "dCrush": -0.08,
+   "dSat": -0.001
+  },
+  "anor_interior": {
+   "dEV": 0.003,
+   "dClip": 0.13,
+   "dCrush": 0.01,
+   "dSat": -0.0
+  },
+  "archives_balcony": {
+   "dEV": 0.001,
+   "dClip": 0.02,
+   "dCrush": 0.0,
+   "dSat": 0.0
+  }
+ }
+}
