@@ -1,0 +1,525 @@
+{
+ "_doc": "Session 3 (2026-10-30), captures/s3: exposure pinned (dist/_dptest/pin_van, make_dp_tests.py), 6 bonfires. Columns are vs pin_van with vanilla shaders; 'repeat' is pin_van_b (noise). frame/char/env = EV of mean linear luminance; moved = % pixels whose 8-bit luma moved > 4. Darkroot and Firelink drift between runs (fog, smoke, idle pose): judge them on 'repeat'.",
+ "s_lightbank_zero": {
+  "anor_interior": {
+   "repeat": {
+    "frame_ev": -0.001,
+    "char_ev": 0.037,
+    "env_ev": -0.002,
+    "moved_pct": 1.53,
+    "clip": -0.01,
+    "crush": -0.04,
+    "sat_x": 1.0
+   },
+   "slb0": {
+    "frame_ev": 0.006,
+    "char_ev": 0.039,
+    "env_ev": 0.006,
+    "moved_pct": 1.51,
+    "clip": -0.02,
+    "crush": -0.02,
+    "sat_x": 1.0
+   }
+  },
+  "archives_balcony": {
+   "repeat": {
+    "frame_ev": -0.002,
+    "char_ev": -0.005,
+    "env_ev": -0.001,
+    "moved_pct": 3.25,
+    "clip": -0.05,
+    "crush": 0.0,
+    "sat_x": 0.998
+   },
+   "slb0": {
+    "frame_ev": -0.002,
+    "char_ev": -0.007,
+    "env_ev": -0.0,
+    "moved_pct": 3.61,
+    "clip": -0.04,
+    "crush": 0.0,
+    "sat_x": 0.999
+   }
+  },
+  "darkroot_garden": {
+   "repeat": {
+    "frame_ev": -0.044,
+    "char_ev": -0.1,
+    "env_ev": -0.028,
+    "moved_pct": 10.13,
+    "clip": -0.3,
+    "crush": 0.0,
+    "sat_x": 1.01
+   },
+   "slb0": {
+    "frame_ev": -0.017,
+    "char_ev": -0.035,
+    "env_ev": -0.01,
+    "moved_pct": 7.08,
+    "clip": -0.09,
+    "crush": 0.0,
+    "sat_x": 1.014
+   }
+  },
+  "firelink": {
+   "repeat": {
+    "frame_ev": -0.006,
+    "char_ev": 0.14,
+    "env_ev": -0.013,
+    "moved_pct": 28.93,
+    "clip": -0.01,
+    "crush": 1.58,
+    "sat_x": 0.996
+   },
+   "slb0": {
+    "frame_ev": -0.018,
+    "char_ev": -0.072,
+    "env_ev": -0.021,
+    "moved_pct": 35.46,
+    "clip": -0.0,
+    "crush": 1.36,
+    "sat_x": 1.0
+   }
+  },
+  "painted": {
+   "repeat": {
+    "frame_ev": -0.0,
+    "char_ev": -0.006,
+    "env_ev": 0.0,
+    "moved_pct": 5.29,
+    "clip": 0.0,
+    "crush": 0.01,
+    "sat_x": 1.0
+   },
+   "slb0": {
+    "frame_ev": -0.001,
+    "char_ev": -0.019,
+    "env_ev": -0.0,
+    "moved_pct": 4.76,
+    "clip": -0.01,
+    "crush": 0.02,
+    "sat_x": 1.0
+   }
+  },
+  "parish": {
+   "repeat": {
+    "frame_ev": 0.005,
+    "char_ev": 0.119,
+    "env_ev": -0.01,
+    "moved_pct": 6.71,
+    "clip": -0.01,
+    "crush": -0.15,
+    "sat_x": 1.002
+   },
+   "slb0": {
+    "frame_ev": 0.005,
+    "char_ev": -0.007,
+    "env_ev": 0.007,
+    "moved_pct": 6.22,
+    "clip": 0.02,
+    "crush": 0.01,
+    "sat_x": 1.0
+   }
+  }
+ },
+ "features": {
+  "anor_interior": {
+   "repeat": {
+    "frame_ev": -0.001,
+    "char_ev": 0.037,
+    "env_ev": -0.002,
+    "moved_pct": 1.53,
+    "clip": -0.01,
+    "crush": -0.04,
+    "sat_x": 1.0
+   },
+   "shadow": {
+    "frame_ev": -0.022,
+    "char_ev": 0.091,
+    "env_ev": -0.017,
+    "moved_pct": 4.62,
+    "clip": -0.06,
+    "crush": 0.03,
+    "sat_x": 0.999
+   },
+   "specocc": {
+    "frame_ev": -0.033,
+    "char_ev": -0.043,
+    "env_ev": -0.023,
+    "moved_pct": 5.69,
+    "clip": -0.06,
+    "crush": 0.01,
+    "sat_x": 0.998
+   },
+   "plsmooth": {
+    "frame_ev": -0.009,
+    "char_ev": 0.062,
+    "env_ev": -0.006,
+    "moved_pct": 4.22,
+    "clip": -0.05,
+    "crush": -0.02,
+    "sat_x": 0.998
+   },
+   "all": {
+    "frame_ev": -0.024,
+    "char_ev": -0.01,
+    "env_ev": -0.017,
+    "moved_pct": 5.86,
+    "clip": -0.05,
+    "crush": -0.01,
+    "sat_x": 0.998
+   },
+   "all_sunA": {
+    "frame_ev": -0.009,
+    "char_ev": 0.359,
+    "env_ev": -0.017,
+    "moved_pct": 7.26,
+    "clip": -0.06,
+    "crush": -0.68,
+    "sat_x": 0.996
+   },
+   "sunA": {
+    "frame_ev": -0.015,
+    "char_ev": 0.384,
+    "env_ev": -0.022,
+    "moved_pct": 6.88,
+    "clip": -0.05,
+    "crush": -0.58,
+    "sat_x": 0.996
+   }
+  },
+  "archives_balcony": {
+   "repeat": {
+    "frame_ev": -0.002,
+    "char_ev": -0.005,
+    "env_ev": -0.001,
+    "moved_pct": 3.25,
+    "clip": -0.05,
+    "crush": 0.0,
+    "sat_x": 0.998
+   },
+   "shadow": {
+    "frame_ev": -0.003,
+    "char_ev": -0.003,
+    "env_ev": -0.001,
+    "moved_pct": 2.17,
+    "clip": -0.07,
+    "crush": 0.0,
+    "sat_x": 0.998
+   },
+   "specocc": {
+    "frame_ev": -0.003,
+    "char_ev": -0.008,
+    "env_ev": -0.001,
+    "moved_pct": 2.32,
+    "clip": -0.08,
+    "crush": 0.0,
+    "sat_x": 0.998
+   },
+   "plsmooth": {
+    "frame_ev": -0.003,
+    "char_ev": 0.0,
+    "env_ev": -0.001,
+    "moved_pct": 2.59,
+    "clip": -0.1,
+    "crush": 0.0,
+    "sat_x": 0.998
+   },
+   "all": {
+    "frame_ev": -0.003,
+    "char_ev": -0.005,
+    "env_ev": -0.001,
+    "moved_pct": 2.73,
+    "clip": -0.1,
+    "crush": 0.0,
+    "sat_x": 0.998
+   },
+   "all_sunA": {
+    "frame_ev": 0.001,
+    "char_ev": 0.076,
+    "env_ev": -0.001,
+    "moved_pct": 3.25,
+    "clip": -0.1,
+    "crush": 0.0,
+    "sat_x": 0.998
+   },
+   "sunA": {
+    "frame_ev": 0.001,
+    "char_ev": 0.057,
+    "env_ev": -0.001,
+    "moved_pct": 3.11,
+    "clip": -0.1,
+    "crush": 0.0,
+    "sat_x": 0.997
+   }
+  },
+  "darkroot_garden": {
+   "repeat": {
+    "frame_ev": -0.044,
+    "char_ev": -0.1,
+    "env_ev": -0.028,
+    "moved_pct": 10.13,
+    "clip": -0.3,
+    "crush": 0.0,
+    "sat_x": 1.01
+   },
+   "shadow": {
+    "frame_ev": -0.068,
+    "char_ev": -0.231,
+    "env_ev": -0.038,
+    "moved_pct": 14.72,
+    "clip": -0.44,
+    "crush": 0.0,
+    "sat_x": 1.005
+   },
+   "specocc": {
+    "frame_ev": -0.058,
+    "char_ev": -0.15,
+    "env_ev": -0.035,
+    "moved_pct": 13.08,
+    "clip": -0.45,
+    "crush": 0.0,
+    "sat_x": 1.008
+   },
+   "plsmooth": {
+    "frame_ev": -0.074,
+    "char_ev": -0.219,
+    "env_ev": -0.051,
+    "moved_pct": 14.35,
+    "clip": -0.59,
+    "crush": 0.0,
+    "sat_x": 1.004
+   },
+   "all": {
+    "frame_ev": -0.077,
+    "char_ev": -0.223,
+    "env_ev": -0.049,
+    "moved_pct": 14.59,
+    "clip": -0.58,
+    "crush": 0.0,
+    "sat_x": 1.003
+   },
+   "all_sunA": {
+    "frame_ev": -0.072,
+    "char_ev": -0.186,
+    "env_ev": -0.048,
+    "moved_pct": 13.97,
+    "clip": -0.62,
+    "crush": 0.0,
+    "sat_x": 1.012
+   },
+   "sunA": {
+    "frame_ev": -0.074,
+    "char_ev": -0.23,
+    "env_ev": -0.045,
+    "moved_pct": 14.47,
+    "clip": -0.7,
+    "crush": 0.0,
+    "sat_x": 1.004
+   }
+  },
+  "firelink": {
+   "repeat": {
+    "frame_ev": -0.006,
+    "char_ev": 0.14,
+    "env_ev": -0.013,
+    "moved_pct": 28.93,
+    "clip": -0.01,
+    "crush": 1.58,
+    "sat_x": 0.996
+   },
+   "shadow": {
+    "frame_ev": 0.006,
+    "char_ev": 0.246,
+    "env_ev": 0.001,
+    "moved_pct": 45.93,
+    "clip": 0.03,
+    "crush": -0.63,
+    "sat_x": 0.933
+   },
+   "specocc": {
+    "frame_ev": -0.013,
+    "char_ev": -0.035,
+    "env_ev": -0.019,
+    "moved_pct": 36.07,
+    "clip": 0.01,
+    "crush": -0.75,
+    "sat_x": 1.057
+   },
+   "plsmooth": {
+    "frame_ev": 0.035,
+    "char_ev": 0.212,
+    "env_ev": 0.041,
+    "moved_pct": 55.98,
+    "clip": 0.02,
+    "crush": -1.7,
+    "sat_x": 0.853
+   },
+   "all": {
+    "frame_ev": 0.01,
+    "char_ev": -0.034,
+    "env_ev": 0.013,
+    "moved_pct": 38.66,
+    "clip": 0.01,
+    "crush": -0.95,
+    "sat_x": 1.003
+   },
+   "all_sunA": {
+    "frame_ev": -0.013,
+    "char_ev": -0.071,
+    "env_ev": -0.016,
+    "moved_pct": 37.33,
+    "clip": 0.0,
+    "crush": 1.53,
+    "sat_x": 1.015
+   },
+   "sunA": {
+    "frame_ev": -0.002,
+    "char_ev": 0.093,
+    "env_ev": -0.007,
+    "moved_pct": 38.72,
+    "clip": 0.02,
+    "crush": 1.51,
+    "sat_x": 0.989
+   }
+  },
+  "painted": {
+   "repeat": {
+    "frame_ev": -0.0,
+    "char_ev": -0.006,
+    "env_ev": 0.0,
+    "moved_pct": 5.29,
+    "clip": 0.0,
+    "crush": 0.01,
+    "sat_x": 1.0
+   },
+   "shadow": {
+    "frame_ev": -0.0,
+    "char_ev": -0.008,
+    "env_ev": 0.0,
+    "moved_pct": 4.07,
+    "clip": -0.01,
+    "crush": -0.02,
+    "sat_x": 1.0
+   },
+   "specocc": {
+    "frame_ev": -0.0,
+    "char_ev": -0.008,
+    "env_ev": 0.0,
+    "moved_pct": 4.6,
+    "clip": 0.0,
+    "crush": 0.0,
+    "sat_x": 1.0
+   },
+   "plsmooth": {
+    "frame_ev": -0.0,
+    "char_ev": -0.015,
+    "env_ev": 0.0,
+    "moved_pct": 4.59,
+    "clip": -0.0,
+    "crush": 0.0,
+    "sat_x": 1.0
+   },
+   "all": {
+    "frame_ev": -0.0,
+    "char_ev": -0.008,
+    "env_ev": 0.0,
+    "moved_pct": 4.88,
+    "clip": 0.0,
+    "crush": 0.0,
+    "sat_x": 1.0
+   },
+   "all_sunA": {
+    "frame_ev": 0.001,
+    "char_ev": -0.006,
+    "env_ev": 0.002,
+    "moved_pct": 5.75,
+    "clip": -0.01,
+    "crush": -0.03,
+    "sat_x": 0.997
+   },
+   "sunA": {
+    "frame_ev": 0.001,
+    "char_ev": -0.004,
+    "env_ev": 0.002,
+    "moved_pct": 5.5,
+    "clip": -0.01,
+    "crush": -0.05,
+    "sat_x": 0.997
+   }
+  },
+  "parish": {
+   "repeat": {
+    "frame_ev": 0.005,
+    "char_ev": 0.119,
+    "env_ev": -0.01,
+    "moved_pct": 6.71,
+    "clip": -0.01,
+    "crush": -0.15,
+    "sat_x": 1.002
+   },
+   "shadow": {
+    "frame_ev": -0.028,
+    "char_ev": -0.029,
+    "env_ev": -0.034,
+    "moved_pct": 9.46,
+    "clip": -0.07,
+    "crush": 0.03,
+    "sat_x": 0.999
+   },
+   "specocc": {
+    "frame_ev": -0.026,
+    "char_ev": -0.048,
+    "env_ev": -0.032,
+    "moved_pct": 11.99,
+    "clip": -0.01,
+    "crush": 0.22,
+    "sat_x": 0.998
+   },
+   "plsmooth": {
+    "frame_ev": -0.029,
+    "char_ev": -0.074,
+    "env_ev": -0.029,
+    "moved_pct": 11.91,
+    "clip": -0.02,
+    "crush": 0.35,
+    "sat_x": 0.994
+   },
+   "all": {
+    "frame_ev": -0.033,
+    "char_ev": -0.021,
+    "env_ev": -0.043,
+    "moved_pct": 11.95,
+    "clip": -0.06,
+    "crush": 0.32,
+    "sat_x": 0.996
+   },
+   "all_sunA": {
+    "frame_ev": -0.025,
+    "char_ev": -0.029,
+    "env_ev": -0.03,
+    "moved_pct": 10.63,
+    "clip": -0.04,
+    "crush": 0.09,
+    "sat_x": 0.999
+   },
+   "sunA": {
+    "frame_ev": -0.022,
+    "char_ev": -0.017,
+    "env_ev": -0.022,
+    "moved_pct": 12.01,
+    "clip": 0.0,
+    "crush": 0.29,
+    "sat_x": 0.996
+   }
+  }
+ },
+ "gpu": "nvidia-smi util x clock over the 4 s before each capture: 6-11 for every variant (GPU ~8% busy at the 60 fps cap, RTX 5090 4K); no measurable feature cost.",
+ "conclusions": [
+  "s_LightBank is not read in gameplay: zeroing every colA field and env multiplier of every row changed nothing beyond the repeat noise at all six bonfires. It stays vanilla (immutable) and needs no lockstep.",
+  "DSRLE_SHADOW_SOFT: visibly smoother shadow edges (Archives floor, Painted sand at 3x zoom), no grain or acne seen; EV neutral.",
+  "DSRLE_SPEC_OCC and DSRLE_PL_SMOOTH: EV within -0.03..+0.01 outside the drifting views; no artifacts seen.",
+  "Sun A with Snow excluded: Painted clip -0.01 (was +1.63 before the exclusion). Anor interior char +0.38 with vanilla colA_s (indoor leak, removed per row by the W3 specs).",
+  "Frozen FlverPBL shader: feat_all_sunA (DSRLE_ALL + DSRLE_SUN_A)."
+ ]
+}

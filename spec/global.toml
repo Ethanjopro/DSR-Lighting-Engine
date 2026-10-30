@@ -6,8 +6,9 @@
 # Baked lightmaps fix the light rig; cubemap IDs index textures and must never change.
 LightBank = ["degRotX_0", "degRotY_0", "degRotX_1", "degRotY_1", "degRotX_2", "degRotY_2",
              "degRotX_s", "degRotY_s", "envDif", "envSpc_0", "envSpc_1", "envSpc_2", "envSpc_3"]
-s_LightBank = ["degRotX_0", "degRotY_0", "degRotX_1", "degRotY_1", "degRotX_2", "degRotY_2",
-               "degRotX_s", "degRotY_s", "envDif", "envSpc_0", "envSpc_1", "envSpc_2", "envSpc_3"]
+# Session 3 (data/session3_ab.json): zeroing every s_LightBank intensity changed nothing in game, so the
+# engine does not read it in gameplay. It stays vanilla.
+s_LightBank = ["*"]
 # Unswept fields are frozen until a sweep says what they do (looks/README.md P5-P8).
 ShadowBank = ["lightDegRotX", "lightDegRotY", "densityRatio", "colR", "colG", "colB", "beginDist", "calibulateFar",
               "persedDepthOffset", "shadowVolumeDepth"]
@@ -144,7 +145,7 @@ model_gain = 2.8
 # --- Lockstep ------------------------------------------------------------------------------
 [lockstep]
 ratio_tolerance = 0.10  # char rows / s_LightBank rows must track their map row's change ratio within +-10%
-s_lightbank_same_id = true
+s_lightbank_same_id = false  # s_LightBank is immutable (unused by the engine)
 # colA_s is per-row sun intent, so it is excluded from all lockstep checks. s_ fields that are 0 in vanilla are
 # skipped; small integer s_ fields pass when they equal round(old x ratio). A LightBank colA field going from 0 to
 # nonzero must be listed in the area spec's from_zero, or it is an error.
