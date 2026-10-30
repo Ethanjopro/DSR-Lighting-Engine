@@ -15,3 +15,6 @@ tools/bin/
 
 # Extracted game values (regenerate with tools/extract.py)
 data/vanilla/
+
+# Release builds (tools/package.py)
+release/build/
