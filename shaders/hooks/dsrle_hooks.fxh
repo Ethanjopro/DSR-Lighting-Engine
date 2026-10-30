@@ -14,7 +14,8 @@
 //     fxc's register allocation in some blobs.
 //   * A feature replaces a hook by #defining the macro first. Set
 //     /D DSRLE_FEATURES and put the definitions in shaders/features/
-//     dsrle_features.fxh (included below, ahead of the defaults). A feature may
+//     dsrle_features.fxh (included below, ahead of the defaults; add /I shaders/features,
+//     see shaders/tools/build_sun.py). A feature may
 //     declare its own globals or functions there. Its blobs are then no longer
 //     vanilla, which is the point.
 //   * Visibility: a hook MACRO body expands at its call site and can use everything there
@@ -131,7 +132,8 @@
 //   shadowRate float3 real-time shadow visibility (after DSRLE_HOOK_SHADOW); 1 for variants
 //                     with no shadow map
 //   lightmap  float4  light-map sample after gFC_DebugPointLightParams.y scaling
-//                     (rgb = baked light incl. baked sun, a = static-light shadow); 1 for
+//                     (rgb = baked light incl. baked sun, a = static POINT-light shadow, which
+//                     feeds only the clustered point lights; not sun occlusion); 1 for
 //                     variants with no light map. Lit+shadow variants also have min(shadow, lightmap)
 //                     baked into the vanilla lightRate
 //   vertexNormal float3 interpolated vertex normal (face-flipped, not normalised)
