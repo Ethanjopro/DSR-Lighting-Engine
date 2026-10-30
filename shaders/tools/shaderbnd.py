@@ -123,9 +123,10 @@ def parse_bnd3(bnd: bytes) -> Bnd3:
         raise ValueError("not BND3")
     sig = bnd[4:12]
     flags, be, bbe = bnd[0xC], bnd[0xD], bnd[0xE]
-    if be or bbe or flags != 0x54:
+    if be or bbe or flags not in (0x54, 0x74):
         raise ValueError(f"unsupported BND3 flags {flags:#x} be={be} bbe={bbe}")
-    # raw 0x54 is bit-reversed 0x2A: IDs | Names2 | Compression(sizes) -> 0x18-byte entry headers
+    # raw 0x54 is bit-reversed 0x2A: IDs | Names2 | Compression(sizes); raw 0x74 (FRPG_Filter) is 0x2E,
+    # which adds Names1. Both give the same 0x18-byte entry headers (flags, size, offset, id, name, usize).
     count, _hdr_end = struct.unpack_from("<iI", bnd, 0x10)
     entries = []
     for i in range(count):
