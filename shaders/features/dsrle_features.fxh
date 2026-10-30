@@ -220,4 +220,471 @@
 
 #endif // DSRLE_SUN_A || DSRLE_SUN_B
 
+//==============================================================================
+// QUALITY FEATURES (shadow filter, specular occlusion, point-light falloff)
+//
+// Three independent compile-time features, each OFF unless its switch is set:
+//   /D DSRLE_SHADOW_SOFT    DSRLE_HOOK_SHADOW      rotated Vogel-disk PCF + cascade cross-fade
+//   /D DSRLE_SPEC_OCC       DSRLE_HOOK_AMBIENT     specular occlusion of the light-probe specular
+//   /D DSRLE_PL_SMOOTH      DSRLE_HOOK_POINTLIGHT  smooth, bounded point-light falloff
+//   /D DSRLE_ALL            all three (the sun is NOT included; add /D DSRLE_SUN_A or _B for it)
+// Build, gate, RDEF check and pack: shaders/tools/build_features.py.
+// The helper functions below read only gFC_* constants and gSMP_* resources (they are
+// parsed at the include point); everything that needs a call-site name is in the hook macro.
+// No new cbuffer variables, samplers, textures or globals: the $Globals layout and the
+// resource bindings stay those of vanilla, only RDEF "used" flags can change.
+// Baseline note: the identity rebuild is SHEX-exact to vanilla on 890 of 902 blobs. The 12 FRPG_Snow_*
+// blobs differ from vanilla only in register / swizzle allocation (same instruction count, STAT,
+// ISGN and OSGN). Every feature that changes a Snow blob therefore ships that rebuild; the reports
+// list them as changed_nonexact_in_identity.
+//==============================================================================
+#ifdef DSRLE_ALL
+	#ifndef DSRLE_SHADOW_SOFT
+		#define DSRLE_SHADOW_SOFT
+	#endif
+	#ifndef DSRLE_SPEC_OCC
+		#define DSRLE_SPEC_OCC
+	#endif
+	#ifndef DSRLE_PL_SMOOTH
+		#define DSRLE_PL_SMOOTH
+	#endif
+#endif
+
+//------------------------------------------------------------------------------
+// FEATURE: SHADOW_SOFT  (DSRLE_HOOK_SHADOW)                 switch: /D DSRLE_SHADOW_SOFT
+//
+// VANILLA (ShadowFunc, verified on the vanilla disassembly of FRPG_Phn_DifSpcBmp______Csd_HemEnv)
+//   cascade   slice = (number of gFC_ShadowStartDist (c23) splits below the view depth In.VtxWld.w) - 1,
+//             matrix gFC_ShadowMapMtxArray[slice] (c40..c55), rectangle gFC_ShadowMapClamp[slice]
+//             (c56..c59; the probe shows the four cascades are the four quadrants of one atlas, t7).
+//   clamp     a light-space position outside its cascade rectangle is pushed one atlas width off the
+//             map, so the border/address mode of the comparison sampler decides it.
+//   kernel    9 SampleCmp (sample_c) at integer texel offsets -1..1, weight 1/9: a 3x3 box of
+//             comparison taps (a 4x4-texel tent if the s7 comparison sampler filters linearly; the
+//             sampler state is set by the engine and is not visible in the blob).
+//   rate      occ = saturate(pcf + saturate((dot(c73, N) + c21.x) * c21.w))   (slope term),
+//             fade = saturate((c21.y - eyeVec.w) * c21.z),
+//             rate = pow(|1 - fade * c22.rgb * occ|, gFC_DebugPointLightParams.z).
+//   The square 3x3 footprint of one shadow texel steps as the texel grid moves under the camera
+//   (stair-steps and crawling on edges), and the cascade switch is a hard line.
+//
+// NEW, the same lookup with three changes (everything else, including the rate composition
+// above, the slope term, the fade, ShadowColor/densityRatio and the clamp, is reproduced, so the
+// result is a drop-in replacement for the vanilla visibility the hook receives):
+//   kernel    DSRLE_SHADOW_SOFT_TAPS (16, or 12) SampleCmpLevelZero taps on a Vogel (golden-angle)
+//             disk, centroid removed, radius DSRLE_SHADOW_SOFT_RADIUS = 1.45 texels of the atlas
+//             (t7 GetDimensions, so the radius follows the shadow-quality setting). LevelZero is the
+//             same texel as vanilla's sample_c on a single-mip depth map, and it is legal inside the
+//             cross-fade branch.
+//             SIZE, two measures (16 taps; the farthest tap is at 0.967 R):
+//               R      reach (largest tap offset along a direction)   per-axis variance
+//                      min / mean / max over directions, texels       texel^2
+//               box    1.00 / 1.27 / 1.41  (vanilla 3x3)              0.667
+//               1.45   1.05 / 1.24 / 1.40                             0.525
+//               1.633  1.18 / 1.40 / 1.58                             0.667  (variance match)
+//               1.75   1.26 / 1.50 / 1.69                             0.766
+//             Reach is what matters for self-shadowing: there is no receiver-plane bias, so a tap
+//             offset along the receiver's depth gradient compares against a depth up to slope * reach
+//             away, and the bias that keeps vanilla clean was set (in the cascade matrices) for
+//             vanilla's reach. R = 1.45 keeps both the mean and the max reach at or below the vanilla
+//             box's (the max-reach bound is R <= 1.46), so no tap reaches farther than vanilla's
+//             farthest (diagonal) tap, and the kernel is no wider than vanilla's (variance 21% lower,
+//             about 11% narrower; with a LINEAR comparison sampler both kernels gain the same 2x2
+//             footprint). A round disk exceeds the box's 1.0 axis reach in some directions at any
+//             radius above 1.03,
+//             so on receivers whose depth gradient is axis-aligned in the atlas the onset of acne can
+//             still come slightly earlier than vanilla. /D DSRLE_SHADOW_SOFT_RADIUS=1.75f gives the
+//             softer kernel (reach up to 1.69 texels, +20% over vanilla's diagonal, +69% over its axes).
+//             The 16-tap table itself is slightly anisotropic (per-axis 0.229 / 0.270 R^2); the
+//             rotation averages that out, with NO_ROTATE it shows.
+//   rotation  the disk is rotated per pixel. Seed: interleaved gradient noise of the pixel position
+//             (In.VtxClp.xy, SV_Position, which every shadowed variant except the unlit Non ones
+//             already reads for SSAO or refraction). The pattern is fixed on screen: it is still with a
+//             still camera and does not re-randomise when the camera moves (a world-position hash
+//             would, since a pixel's interpolated position changes with any camera motion), and the
+//             grain does not follow the water waves. It is a fine grain in penumbrae only (fully lit
+//             and fully shadowed pixels are unaffected). The unlit Non shaders read no SV_Position
+//             in vanilla and their ISGN must not change, so they keep a hash of the position the
+//             lookup already reads (In.VtxWld for Csd, In.VtxLit for Sdw); there the grain is still
+//             with a still camera but re-randomises every frame while it moves.
+//             /D DSRLE_SHADOW_SOFT_NO_ROTATE uses a fixed disk.
+//   rim       inside its rectangle the disk centre is clamped (R + 1) texels away from the rectangle
+//             edge, so no tap reads a neighbouring cascade's quadrant (vanilla's 3x3 reads up to 2).
+//   cascades  (Csd only) over the last DSRLE_SHADOW_SOFT_XFADE = 10% of each cascade's depth range the
+//             occlusion is blended towards the next cascade (lerp of the PCF value, before the slope
+//             term), so the resolution change is a ramp instead of a line. Only pixels in that band
+//             pay for a second lookup ([branch]). The last cascade has no successor; the vanilla
+//             distance fade covers it. /D DSRLE_SHADOW_SOFT_NO_XFADE removes the blend.
+// LOOKUPS
+//   Csd (cascaded PS lookup)  : as above.
+//   Ncs (water/snow, one map)  : cascade 0 matrix and rectangle, as vanilla; no cross-fade.
+//   Sdw (VS light-space)       : In.VtxLit with rectangle 0, as vanilla; no cross-fade. The hook does
+//                                not receive In.VtxLit, so DSRLE_SS_SDWPOS picks it by pasting the
+//                                variant's WITH_ShadowMap value (1 = CalcLispPos_VS), and it never
+//                                names In.VtxLit in a variant that lacks it.
+//   /D DSRLE_SHADOW_SOFT_CSD_ONLY keeps Sdw and Ncs vanilla.
+// COST  measured (fxc slots vs the off build): Csd +131..+132 (16 sample_c_lz per lookup instead of
+//       9 sample_c, plus the second lookup in the cross-fade branch, taken only in the band),
+//       Sdw / Ncs +49..+50; the Non blobs, which hash a position instead, Sdw +58, Csd +139.
+//       Per tap: 1 sample + 1 mad.
+// RISKS self-shadowing on grazing receivers (N.L about 0.1 to 0.3 against c73) whose depth gradient
+//       is close to an atlas axis: there the disk reaches up to 1.40 texels where vanilla reaches 1.0
+//       (see SIZE). Not measured in game; if acne shows, lower DSRLE_SHADOW_SOFT_RADIUS (1.03 is the
+//       axis-safe limit) rather than raising it.
+//       The rotation noise has no temporal filter to hide it (no TAA); it is limited to penumbrae
+//       and is a fixed screen pattern (a slight screen-door look in a moving penumbra), except in
+//       the 64 unlit Non blobs, where it re-randomises while the camera moves.
+//       SampleCmpLevelZero equals vanilla's sample_c only on a single-mip shadow atlas.
+//       If the engine's s7 comparison sampler is POINT rather than LINEAR, each tap is binary and
+//       the grain is coarser (17 levels instead of a continuous ramp); vanilla would be 10 levels.
+//------------------------------------------------------------------------------
+#ifdef DSRLE_SHADOW_SOFT
+
+#ifndef DSRLE_SHADOW_SOFT_TAPS
+	#define DSRLE_SHADOW_SOFT_TAPS 16
+#endif
+#ifndef DSRLE_SHADOW_SOFT_RADIUS
+	#define DSRLE_SHADOW_SOFT_RADIUS 1.45f
+#endif
+#ifndef DSRLE_SHADOW_SOFT_XFADE
+	#define DSRLE_SHADOW_SOFT_XFADE 0.1f
+#endif
+
+// Rotation seeds in [0, 1).
+// Interleaved gradient noise (Jimenez 2014) of the pixel centre: fixed on screen, neighbouring
+// pixels get well-spread values.
+float dsrle_ss_Ign(float2 pixel)
+{
+	return frac(52.9829189f * frac(dot(pixel, float2(0.06711056f, 0.00583715f))));
+}
+// Hash of a position's bit pattern (only for the Non shaders, which read no SV_Position): constant
+// for a given position, so still with a still camera.
+float dsrle_ss_Hash(float3 p)
+{
+	const uint3 u = asuint(p);
+	uint h = (u.x * 73856093u) ^ (u.y * 19349663u) ^ (u.z * 83492791u);
+	h ^= h >> 16;
+	h *= 0x7feb352du;
+	h ^= h >> 15;
+	h *= 0x846ca68bu;
+	h ^= h >> 16;
+	return (float)(h >> 8) * (1.0f / 16777216.0f);
+}
+
+// Disk basis in atlas UV (ax, ay = rotated unit axes times the radius), and the rim margin.
+// rot = rotation in turns, [0, 1).
+void dsrle_ss_Basis(float rot, out float2 ax, out float2 ay, out float2 margin)
+{
+	float w, h;
+	gSMP_ShadowMap.GetDimensions(w, h);
+	const float2 texel = 1.0f / float2(w, h);
+#ifdef DSRLE_SHADOW_SOFT_NO_ROTATE
+	const float s = 0.0f;
+	const float c = 1.0f;
+#else
+	float s, c;
+	sincos(rot * 6.2831853f, s, c);
+#endif
+	ax = float2(c, s) * texel * DSRLE_SHADOW_SOFT_RADIUS;
+	ay = float2(-s, c) * texel * DSRLE_SHADOW_SOFT_RADIUS;
+	margin = texel * (DSRLE_SHADOW_SOFT_RADIUS + 1.0f);
+}
+
+// Vogel disk, unit radius, centroid removed (generated: r = sqrt((i + 0.5) / N), angle = i * 2.39996).
+#define DSRLE_SS_TAP(kx, ky) acc += gSMP_ShadowMap.SampleCmpLevelZero(gSMP_ShadowMapSampler, uvz.xy + (kx) * ax + (ky) * ay, uvz.z).x;
+float dsrle_ss_Pcf(float3 uvz, float2 ax, float2 ay)
+{
+	float acc = 0.0f;
+#if (DSRLE_SHADOW_SOFT_TAPS == 12)
+	DSRLE_SS_TAP(+0.17227f, -0.03891f) DSRLE_SS_TAP(-0.29255f, +0.19991f) DSRLE_SS_TAP(+0.00805f, -0.49360f) DSRLE_SS_TAP(+0.29674f, +0.38969f)
+	DSRLE_SS_TAP(-0.63487f, -0.14557f) DSRLE_SS_TAP(+0.53937f, -0.40227f) DSRLE_SS_TAP(-0.22292f, +0.67184f) DSRLE_SS_TAP(-0.39623f, -0.74050f)
+	DSRLE_SS_TAP(+0.75870f, +0.24980f) DSRLE_SS_TAP(-0.85430f, +0.30058f) DSRLE_SS_TAP(+0.36462f, -0.88614f) DSRLE_SS_TAP(+0.26113f, +0.89517f)
+	return acc * (1.0f / 12.0f);
+#else
+	DSRLE_SS_TAP(+0.18994f, +0.02709f) DSRLE_SS_TAP(-0.21261f, +0.23391f) DSRLE_SS_TAP(+0.04772f, -0.36668f) DSRLE_SS_TAP(+0.29773f, +0.39826f)
+	DSRLE_SS_TAP(-0.50906f, -0.06529f) DSRLE_SS_TAP(+0.50786f, -0.28760f) DSRLE_SS_TAP(-0.15231f, +0.64261f) DSRLE_SS_TAP(-0.30240f, -0.58051f)
+	DSRLE_SS_TAP(+0.69780f, +0.27712f) DSRLE_SS_TAP(-0.69910f, +0.32110f) DSRLE_SS_TAP(+0.35651f, -0.70664f) DSRLE_SS_TAP(+0.26689f, +0.83602f)
+	DSRLE_SS_TAP(-0.75159f, -0.41610f) DSRLE_SS_TAP(+0.91029f, -0.17015f) DSRLE_SS_TAP(-0.53435f, +0.80586f) DSRLE_SS_TAP(-0.11333f, -0.94900f)
+	return acc * (1.0f / 16.0f);
+#endif
+}
+#undef DSRLE_SS_TAP
+
+// One lookup: projective divide, the vanilla off-the-map push for positions outside the cascade
+// rectangle, the rim clamp, then the disk.
+float dsrle_ss_Lookup(float4 posLight, float4 rect, float2 ax, float2 ay, float2 margin)
+{
+	float3 uvz = posLight.xyz / posLight.w;
+	const float2 push = float2(uvz.xy > rect.zw) - float2(uvz.xy < rect.xy);
+	uvz.xy = clamp(uvz.xy, rect.xy + margin, rect.zw - margin) + push;
+	return dsrle_ss_Pcf(uvz, ax, ay);
+}
+
+// The vanilla visibility composition around a PCF value.
+float3 dsrle_ss_Rate(float pcf, float3 N, float4 eyeVec)
+{
+	const float slope = saturate((dot(gFC_ShadowLightDir.xyz, N) + gFC_ShadowMapParam.x) * gFC_ShadowMapParam.w);
+	const float fade = saturate((gFC_ShadowMapParam.y - eyeVec.w) * gFC_ShadowMapParam.z);
+	const float3 rate = 1.0f - ((float3)fade) * gFC_ShadowColor.xyz * saturate(pcf + slope);
+	return pow(abs(rate), gFC_DebugPointLightParams.z);
+}
+
+// Csd: cascade selection as vanilla, plus the cross-fade into the next cascade.
+float3 dsrle_ss_Csd(float4 worldPos, float rot, float3 N, float4 eyeVec)
+{
+	float2 ax, ay, margin;
+	dsrle_ss_Basis(rot, ax, ay, margin);
+	const float4 wp = float4(worldPos.xyz, 1.0f);
+	const float viewZ = worldPos.w;
+	const float4 past = float4(gFC_ShadowStartDist < viewZ);
+	const int slice = (int)(dot(past, float4(1.0f, 1.0f, 1.0f, 1.0f)) - 1.0f);
+	float pcf = dsrle_ss_Lookup(mul(wp, gFC_ShadowMapMtxArray[slice]), gFC_ShadowMapClamp[slice], ax, ay, margin);
+#ifndef DSRLE_SHADOW_SOFT_NO_XFADE
+	const float4 one = float4(slice == int4(0, 1, 2, 3));
+	const float zStart = dot(gFC_ShadowStartDist, one);
+	const float zEnd = dot(float4(gFC_ShadowStartDist.yzw, 0.0f), one);
+	const float band = max((zEnd - zStart) * DSRLE_SHADOW_SOFT_XFADE, 1e-4f);
+	const float t = (slice < 3) ? saturate((viewZ - (zEnd - band)) / band) : 0.0f;
+	[branch] if (t > 0.0f)
+	{
+		const int next = min(slice + 1, 3);
+		pcf = lerp(pcf, dsrle_ss_Lookup(mul(wp, gFC_ShadowMapMtxArray[next]), gFC_ShadowMapClamp[next], ax, ay, margin), t);
+	}
+#endif
+	return dsrle_ss_Rate(pcf, N, eyeVec);
+}
+
+// Sdw / Ncs: one light-space position, rectangle 0 (as vanilla).
+float3 dsrle_ss_Single(float4 posLight, float rot, float3 N, float4 eyeVec)
+{
+	float2 ax, ay, margin;
+	dsrle_ss_Basis(rot, ax, ay, margin);
+	return dsrle_ss_Rate(dsrle_ss_Lookup(posLight, gFC_ShadowMapClamp[0], ax, ay, margin), N, eyeVec);
+}
+
+// In.VtxLit for the Sdw variants only (WITH_ShadowMap: 1 = CalcLispPos_VS, 2 = _PS / _PS_Csd,
+// 3 = _PS_NoCsd, undefined = unshadowed).
+#define DSRLE_SS__CAT(a, b) a##b
+#define DSRLE_SS_CAT(a, b) DSRLE_SS__CAT(a, b)
+#define DSRLE_SS_LITPOS_1 (In.VtxLit)
+#define DSRLE_SS_LITPOS_2 float4(0.0f, 0.0f, 0.0f, 1.0f)
+#define DSRLE_SS_LITPOS_3 float4(0.0f, 0.0f, 0.0f, 1.0f)
+#define DSRLE_SS_LITPOS_WITH_ShadowMap float4(0.0f, 0.0f, 0.0f, 1.0f)
+#define DSRLE_SS_SDWPOS DSRLE_SS_CAT(DSRLE_SS_LITPOS_, WITH_ShadowMap)
+// Rotation seed: the pixel position (In.VtxClp.xy), except in the unlit Non shaders, which read no
+// SV_Position in vanilla (reading it would change the ISGN used mask). They hash a position their
+// vanilla lookup already reads: the world position for Csd, the light-space position for Sdw (their
+// Sdw lookup reads no world position either). `flags` is a literal, so the unused arm folds away.
+#define DSRLE_SS_SEED(hashPos, flags) ((((flags) & DSRLE_VF_BASE_NON) != 0u) ? dsrle_ss_Hash(hashPos) : dsrle_ss_Ign(In.VtxClp.xy))
+
+#ifdef DSRLE_SHADOW_SOFT_CSD_ONLY
+	#define DSRLE_SS_NCS_ON(flags) false
+	#define DSRLE_SS_SDW_ON(flags) false
+#else
+	#define DSRLE_SS_NCS_ON(flags) (((flags) & DSRLE_VF_NCS) != 0u)
+	#define DSRLE_SS_SDW_ON(flags) (((flags) & DSRLE_VF_SDW) != 0u)
+#endif
+
+#define DSRLE_HOOK_SHADOW(rate, worldPos, N, eyeVec, flags) \
+	((((flags) & DSRLE_VF_CSD) != 0u) ? dsrle_ss_Csd((worldPos), DSRLE_SS_SEED((worldPos).xyz, flags), (N), (eyeVec)) : \
+	 DSRLE_SS_NCS_ON(flags) ? dsrle_ss_Single(mul(float4((worldPos).xyz, 1.0f), gFC_ShadowMapMtxArray[0]), DSRLE_SS_SEED((worldPos).xyz, flags), (N), (eyeVec)) : \
+	 DSRLE_SS_SDW_ON(flags) ? dsrle_ss_Single(DSRLE_SS_SDWPOS, DSRLE_SS_SEED(DSRLE_SS_SDWPOS.xyz, flags), (N), (eyeVec)) : \
+	 (rate))
+
+#endif // DSRLE_SHADOW_SOFT
+
+//------------------------------------------------------------------------------
+// FEATURE: SPEC_OCC  (DSRLE_HOOK_AMBIENT)                    switch: /D DSRLE_SPEC_OCC
+//
+// VANILLA  probe term = LightPower * (diffuse probe * albedo + specular probe * DFG * horizon fade),
+//   then * lightRate (light map, min(shadow, light map) or shadow), then (with the hemisphere ambient)
+//   * SSAO (gSMP_AOMap at In.VtxClp.xy * gFC_SAOParams.xy, when gFC_SAOParams.w != 0). So the probe
+//   specular is occluded exactly like the diffuse: linearly, whatever the view angle and roughness.
+//   A glossy surface in a crease or a dark baked corner therefore keeps its bright grazing-angle
+//   (Fresnel-boosted) sky reflection at the same fraction as its diffuse fill; that rim is the glow.
+//
+// VISIBILITY AVAILABLE AT THE AMBIENT CALL SITE (the hook macro expands there)
+//   lightRate          light map (and real-time shadow) -- already applied by vanilla, rgb.
+//   dsrleLightmap.rgb  baked light only (no real-time shadow), 1 without a light map.
+//   SSAO               re-sampled here; vanilla applies it after the hook.
+//   vertex colour      folded into the albedo (In.ColVtx) with unknown meaning (tint, blend
+//                      weights); not separable, not used.
+//   LightPower         already squared onto the probe term by vanilla; not used.
+//   USED: vis = saturate(CalcLuminance(dsrleLightmap.rgb) * DSRLE_SPEC_OCC_BAKED_K) * SSAO.
+//   The real-time shadow is left out on purpose: it is the sun's visibility, not the sky's, and
+//   vanilla already darkens the probe with it.
+//   K = 2: baked luminance >= 0.5 counts as open; only darker baked texels count as occluded.
+//
+// NEW  only the specular share of the probe term is rescaled by
+//        f = min(1, SO / vis),  SO = saturate((NdotV + vis)^(2^(-16 a - 1)) - 1 + vis),  a = Roughness^2
+//   (SO: Lagarde & de Rousiers 2014, specular occlusion from AO; a = GGX alpha, the game's
+//   Mtl.Roughness is perceptual). Vanilla already multiplies the specular by vis' (a superset of
+//   vis), so f only reshapes that occlusion by view angle and roughness, and min(1, .) means it
+//   never adds energy:
+//     vis = 1             f = 1 exactly (open areas unchanged, any angle or roughness)
+//     NdotV + vis >= 1    f = 1 (facing the camera, or only lightly occluded)
+//     rough materials     f >= 0.985 at every NdotV for roughness 0.7 when vis >= 0.22, 0.8 when
+//                         vis >= 0.07, 0.9 when vis >= 0.02, 1.0 when vis >= 0.003. Below those
+//                         visibilities f falls (roughness 0.7 at NdotV 0: 0.95 at vis 0.1, 0.87 at 0.05,
+//                         0.75 at 0.03, 0 at 0.01): pow(NdotV + vis, tiny exponent) stays just under 1,
+//                         so SO lags vis when vis is small. That specular is already at vis times its
+//                         open value, so the extra loss, (1 - f) * vis, is at most 0.010 (roughness 0.7),
+//                         0.0025 (0.8), 0.0004 (0.9) of the unoccluded probe specular.
+//     roughness 0.5       vis 0.2: f 0.79 / 0.86 / 0.95 at NdotV 0.05 / 0.2 / 0.5
+//     roughness 0.3       vis 0.5: f 0.79 / 0.87 / 1 at NdotV 0.05 / 0.2 / 0.5;
+//                         vis 0.2: f 0 / 0.22 / 0.68
+//     roughness 0.1       vis 0.5: f 0.53 / 0.71 / 1;  vis 0.8: f 0.91 / 1 / 1
+//   The diffuse probe share is recomputed at the call site (CalcDiffuseLD(N), the same cube sample
+//   CalcEnvIBL took; fxc merges the two), so specular = probe term - diffuse share. The SSAO read
+//   is also merged with the vanilla one (one t8 sample, hoisted out of the vanilla branch).
+// GATE  variants with a PBL/specular map only (DSRLE_VF_SPC: without one, roughness is 1 and f = 1).
+// PARAMETERS  DSRLE_SPEC_OCC_BAKED_K (2.0f), /D DSRLE_SPEC_OCC_NO_SSAO, /D DSRLE_SPEC_OCC_NO_BAKED.
+//   With NO_SSAO only the light-mapped variants change (vis is 1 elsewhere and f folds to 1).
+// COST  +15..+22 fxc slots, no extra texture reads.
+// RISKS  SSAO halos (dark rims around characters on walls) also cut the grazing glossy
+//   reflection inside the halo. A dim but open baked area (luminance < 0.5) counts as partly
+//   occluded, so glossy floors there lose some grazing sheen; K = 2 keeps that mild (f >= 0.89 at
+//   luminance 0.3, roughness 0.3, NdotV 0.1).
+// ASSUMES  DSRLE_HOOK_IBL is the identity (checked below).
+//------------------------------------------------------------------------------
+#ifdef DSRLE_SPEC_OCC
+
+#ifdef DSRLE_HOOK_IBL
+	#error "DSRLE_SPEC_OCC recomputes the diffuse probe share and assumes DSRLE_HOOK_IBL is the identity"
+#endif
+#ifndef DSRLE_SPEC_OCC_BAKED_K
+	#define DSRLE_SPEC_OCC_BAKED_K 2.0f
+#endif
+
+// Extra factor on the probe specular, given the visibility vanilla already applied.
+float dsrle_so_Factor(float NdotV, float vis, float roughness)
+{
+	const float alpha = roughness * roughness;
+	const float so = saturate(pow(NdotV + vis, exp2(-16.0f * alpha - 1.0f)) - 1.0f + vis);
+	return min(1.0f, so / max(vis, 1e-3f));
+}
+
+#ifdef DSRLE_SPEC_OCC_NO_BAKED
+	#define DSRLE_SO_BAKED(flags) 1.0f
+#else
+	#define DSRLE_SO_BAKED(flags) ((((flags) & DSRLE_VF_LIT) != 0u) ? saturate(CalcLuminance(dsrleLightmap.rgb) * DSRLE_SPEC_OCC_BAKED_K) : 1.0f)
+#endif
+#ifdef DSRLE_SPEC_OCC_NO_SSAO
+	#define DSRLE_SO_SSAO 1.0f
+#else
+	#define DSRLE_SO_SSAO ((gFC_SAOParams.w != 0.0f) ? tex2Dlod(gSMP_AOMap, float4(In.VtxClp.xy * gFC_SAOParams.xy, 0.0f, 0.0f)).r : 1.0f)
+#endif
+
+#define DSRLE_HOOK_AMBIENT(diffAmb, specAmb, N, V, worldPos, lightRate, flags) \
+	if (((flags) & DSRLE_VF_SPC) != 0u) { \
+		const float3 dsrleSoDiff = Mtl.LightPower * (CalcDiffuseLD(N) * Mtl.DiffuseColor) * (lightRate); \
+		const float dsrleSoF = dsrle_so_Factor(saturate(dot((N), (V))), DSRLE_SO_BAKED(flags) * DSRLE_SO_SSAO, Mtl.Roughness); \
+		(specAmb) = dsrleSoDiff + dsrleSoF * ((specAmb) - dsrleSoDiff); \
+	}
+
+#endif // DSRLE_SPEC_OCC
+
+//------------------------------------------------------------------------------
+// FEATURE: PL_SMOOTH  (DSRLE_HOOK_POINTLIGHT)                switch: /D DSRLE_PL_SMOOTH
+//
+// VANILLA  this generation has ONE falloff, not LAMP_FALLOFF_QLOC: PointLightContribution calls
+//   perceivedLinear (rebuild note "single falloff curve, no falloffMode switch", and the vanilla
+//   disassembly of the clustered loop: add r - d, mul by position.w, x*x, mul_sat x*x^2):
+//     old(d) = saturate(x^3),  x = (r - d) * k,  r = lightColor.w (falloff end),
+//     k = lightPosition.w = 1 / (end - start).
+//   So the light is flat (old = 1) out to the falloff start, then a cubic to 0 at r. The flat top
+//   has no distance falloff at all, and its edge is a slope discontinuity (0 -> -3k) that shows as
+//   a ring on floors and walls. The tail (x^3, zero slope and curvature at r) is already smooth.
+//   DrawParam PointLightBank (636 rows): start/end median 0.25 (0.5 / 2.0 m is 46% of rows),
+//   11% >= 1/3, end radius median 3 m.
+//
+// WHY NOT A PLAIN UE4 CURVE  saturate(1 - (d/r)^4)^2 / (d^2 + 1) normalised to old at r/3 decays far
+//   more slowly than the vanilla cubic near r (its window is quadratic there, vanilla's is cubic):
+//   over the PointLightBank rows it is a median 865x vanilla near the edge, and a 15% cap would bind
+//   over 61% of the radius, i.e. it would just be vanilla + 15% with a new kink. It also has an
+//   absolute 1 m^2 bias, so it is gentle for a 2 m torch and steep for a 15 m bonfire.
+//
+// NEW  a windowed inverse-square whose window is the art-directed vanilla cubic:
+//     y(d) = min(x^3, 64)                    vanilla window without its clip at 1
+//     I(d) = CAP / (1 + (d / (BETA r))^2)    inverse-square near field (sphere-light form), I(0) = CAP
+//     new  = y / (1 + (y / I)^8)^(1/8)       smooth minimum of y and I (p = 8, C-infinity)
+//     contrib *= min(new / max(old, 1e-6), CAP)
+//   CAP = DSRLE_PL_SMOOTH_CAP = 1.15, BETA = DSRLE_PL_SMOOTH_BETA = 1.0.
+//   Bounds, analytically: new <= min(y, I) <= min(y, CAP) and old = min(y, 1), so new <= CAP * old
+//   at every distance (the min(., CAP) is only a float guard). new = 0 where old = 0, the ratio is
+//   finite (old floored at 1e-6, y clamped at 64, y/I clamped at 1e4), contrib stays finite.
+//   Shape: the flat top becomes a gentle inverse-square peak (+15% at the source, I(r/3) = 1.035),
+//   the ring at the falloff start is rounded off, and the tail is vanilla (y << I there).
+//   Normalisation at r/3 (y0 = old(r/3) for start/end <= 1/3, I0 = 1.15 / (1 + 1/9) = 1.035):
+//     new/old = 1 / (1 + (y0/I0)^8)^(1/8): 0.995 for start/end 0.25 (y0 = (0.667/0.75)^3 = 0.702),
+//     1.000 for start/end <= 0.125 (y0 <= 0.43); a light still flat at r/3 (start/end > 1/3) gets
+//     smooth-min(y0 > 1, 1.035) = 0.93..1.035.
+//   Over the 636 PointLightBank rows (shaders/tools/build_features.py --pl-table):
+//     new/old at r/3   p10 0.995, median 0.995, p90 1.000, range 0.93..1.035
+//     at the source    median +15%, never above +15%; 19% of rows below +10% (start 0: -3.5%)
+//     dip at the old falloff start  median -5% (p10 -7%); worst -15..-24% for the 6 rows with
+//                      start/end >= 0.6, whose long flat top now falls off like a light
+//     beyond r/2       identical to vanilla (ratio >= 0.999) for 92% of rows
+//   Most common row (start 0.5, end 2.0 m): ratio 1.15 / 1.12 / 0.95 / 0.995 / 1.000 at
+//   d = 0 / 0.25 / 0.5 / 0.67 / >= 1.0 m.
+// CALL SITES  the hook does not receive k; it is read from the light's position .w by pasting the
+//   lightColor argument (lightColor -> lightPosition, gFC_PntLightCol[i] -> gFC_PntLightPos[i]).
+//   A new call site with another spelling fails to compile. Covered: the clustered loop and the
+//   legacy loop (FaceEye PntS), i.e. the map's PointLightBank lights the statistics above describe.
+//   NOT covered by default: the Gst ghost light (gFC_GhostLightCol / gFC_GhostLightPos, the light the
+//   phantom shaders carry). Its falloff (begin, end) is set by the engine, not by PointLightBank, and
+//   the probe only saw it idle (rgb 0), so none of the numbers above are known to apply to it; a
+//   ghost whose flat top covers most of its radius would be lit up to +15% over that whole top. It
+//   keeps the vanilla falloff: its spelling selects an overload of dsrle_pl_Factor that returns 1,
+//   which fxc folds away. /D DSRLE_PL_SMOOTH_GHOST opts it in.
+// COST  +21 fxc slots per light loop (ALU only); +42 in Gst with DSRLE_PL_SMOOTH_GHOST.
+// RISKS  the +15% hotspot right at the source is visible on surfaces touching a torch or bonfire;
+//   lower it with /D DSRLE_PL_SMOOTH_CAP=1.1f. Point-light SFX that rely on a long flat top
+//   (start/end >= 0.6) lose 15-24% at the old falloff start.
+//------------------------------------------------------------------------------
+#ifdef DSRLE_PL_SMOOTH
+
+#ifndef DSRLE_PL_SMOOTH_CAP
+	#define DSRLE_PL_SMOOTH_CAP 1.15f
+#endif
+#ifndef DSRLE_PL_SMOOTH_BETA
+	#define DSRLE_PL_SMOOTH_BETA 1.0f
+#endif
+
+// new falloff / vanilla falloff, in [0, CAP].
+float dsrle_pl_Factor(float dist, float radius, float invRange)
+{
+	const float x = max((radius - dist) * invRange, 0.0f);
+	const float x3 = x * x * x;
+	const float old = saturate(x3);
+	const float y = min(x3, 64.0f);
+	const float t = dist / max(DSRLE_PL_SMOOTH_BETA * radius, 1e-4f);
+	const float I = DSRLE_PL_SMOOTH_CAP / (1.0f + t * t);
+	const float q = min(y / I, 1e4f);
+	const float q2 = q * q;
+	const float q4 = q2 * q2;
+	const float smin = y / sqrt(sqrt(sqrt(1.0f + q4 * q4)));
+	return min(smin / max(old, 1e-6f), DSRLE_PL_SMOOTH_CAP);
+}
+
+// Vanilla falloff (factor 1). Selected by an int third argument; see DSRLE_PL__POS_gFC_GhostLightCol.
+float dsrle_pl_Factor(float dist, float radius, int keepVanilla)
+{
+	return 1.0f;
+}
+
+#define DSRLE_PL__POS_lightColor lightPosition
+#define DSRLE_PL__POS_gFC_PntLightCol gFC_PntLightPos
+#ifdef DSRLE_PL_SMOOTH_GHOST
+	#define DSRLE_PL__POS_gFC_GhostLightCol gFC_GhostLightPos
+#else
+	// .w of this is an int, which picks the vanilla overload above for the ghost light.
+	#define DSRLE_PL__POS_gFC_GhostLightCol int4(0, 0, 0, 0)
+#endif
+
+#define DSRLE_HOOK_POINTLIGHT(contrib, L, dist, lightColor, N, V, worldPos, lightShadow) \
+	(contrib) *= dsrle_pl_Factor((dist), (lightColor).w, (DSRLE_PL__POS_##lightColor).w)
+
+#endif // DSRLE_PL_SMOOTH
+
 #endif // DSRLE_FEATURES_FXH
