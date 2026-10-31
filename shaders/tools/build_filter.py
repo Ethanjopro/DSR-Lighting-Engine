@@ -14,6 +14,11 @@ Inputs (read only)
     vanilla/manifest.sha256. Vanilla blobs are taken from the archive itself, keyed by entry basename.
 
 Build:  fxc (fxcasm.fxc_path()) per manifest record into dist/_shader/filter_<tag>/blobs/<name>.
+  Every compile gets /I <repo>/shaders/hooks and /I <repo>/shaders/features (absolute, so the cwd does
+  not matter): the hooked ResolveTAA source includes dsrle_filter_hooks.fxh, whose identity defaults
+  keep the build byte-exact; feature switches only need /D (e.g. --extra "/D DSRLE_FEATURES
+  /D DSRLE_TAA_ALL"). Include paths do not enter the bytecode (no /Zi). The hook call sites are
+  inserted by shaders/tools/wire_filter_hooks.py.
 
 Gate, per blob, against the vanilla archive entry:
   SHEX / ISGN / OSGN / STAT byte equality, RDEF equality up to the compiler creator string, and
@@ -73,6 +78,7 @@ DIST = ROOT / "dist" / "_shader"
 INSTALL = ROOT / "dist" / "_shader_install"
 CHUNKS = ("SHEX", "ISGN", "OSGN", "STAT")
 CREATOR_MARK = b"Microsoft (R) HLSL Shader Compiler"
+INCLUDE_DIRS = (ROOT / "shaders" / "hooks", ROOT / "shaders" / "features")
 
 
 # ---------------------------------------------------------------------------
@@ -152,6 +158,8 @@ def compile_one(name: str, rec: dict, man: dict, src_root: Path, out_dir: Path, 
     cmd = [fxc, "/nologo", "/T", prof, "/E", rec["entry"]]
     for d in defs:
         cmd += ["/D", d]
+    for inc in INCLUDE_DIRS:
+        cmd += ["/I", str(inc)]
     cmd += list(rec.get("fxc_args", [])) + extra + ["/Fo", str(dst), str(src)]
     p = subprocess.run(cmd, capture_output=True, text=True, errors="replace")
     msgs = [ln.strip() for ln in (p.stdout + p.stderr).splitlines()
