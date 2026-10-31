@@ -128,7 +128,7 @@ Classes are assigned by sky condition, not per author:
 - **low:** burg, parish_altar, painted_entrance, painted, darkroot_garden (trees row 4 only), sanctuary_garden, oolacile_township, ash_lake, sens, asylum_1.
 - **mid:** firelink, sens_bridge, oolacile_sanctuary, kiln_entrance.
 - **high:** anor_entrance only.
-- **off:** everything else. darkroot_basin is "off" by view only: it shares every row with the garden, so verify that the character crop gains ≤ +0.05 EV between a sun build and sun off.
+- **off:** everything else. darkroot_basin is "off": W4 round 2 showed it is not on a12 rows 0/10 (garden edits left it unchanged), so v1 holds it at vanilla until a row probe finds its rows.
 
 ### 4.3 Sun rules
 
