@@ -1,4 +1,4 @@
-# Darkroot green: NEEDS USER SIGN-OFF (README section 6: the green shift rests on fromsoftserve alone, so it is
+# Darkroot green: USER SIGNED OFF 2026-10-30, kept in 1.0.0 (README section 6: the green shift rests on fromsoftserve alone, so it is
 # halved). Drop this file to remove the move as a unit. Shared rows: Scatter 0 and ToneCorrect 0 also serve m12_01
 # places 1212/1215 (Royal Wood, Battle of Stoicism), which get the same greener haze and grade.
 # ROUND 1 MEASURED (r1_full - r1_main at darkroot_garden): da -0.0070, db +0.0042, sat x1.072, dEV +0.018. The green

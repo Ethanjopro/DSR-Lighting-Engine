@@ -213,6 +213,8 @@ Classes are assigned by sky condition, not per author:
 - the Blighttown lift;
 - any optional experiment (e.g. the lava underlight, which is not in v1).
 
+**Outcome (2026-10-30).** The user kept all four moves that survived measurement: Painted blue-green, Darkroot green, the Blighttown lift and the Kiln/Asylum shadow reach. Burg/Parish cooling, Firelink green and the other dropped moves stay as `*.toml.off`.
+
 ## 7. Transitions
 
 **Rule.** At a walkable boundary the exposure jump may grow by at most 0.3 EV over vanilla: |ΔA − ΔB| ≤ 0.3 on each view's exposure metric. Within the Burg/Parish family, the b shifts must also share one sign (noise 0.0015).

@@ -1,4 +1,4 @@
-# G5 / a18 SIGN-OFF: optional experiment (README section 6 sign-off gates). Drop this file to remove it on its own.
+# G5 / a18 SIGN-OFF: optional experiment, USER SIGNED OFF 2026-10-30, kept in 1.0.0 (README section 6 sign-off gates). Drop this file to remove it on its own.
 # Split from the former a18_kiln_asylum_signoff.toml (W3 fixer), content unchanged.
 # NOTE: ShadowBank 0 is shared by m18_00 and m18_01 (85 objects, 59 characters, 38 collisions), so this moves every
 # Asylum view on ShadowBank 0 as well as the Kiln, not only kiln_entrance.
