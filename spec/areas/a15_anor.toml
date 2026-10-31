@@ -67,11 +67,13 @@ op = "mul"
 fields = { envDif_colA = 0.85 }
 why = "anor_gwynevere: statue row 28 envDif x0.85 (x0.8-0.9), hue held; row 21 held (anor_interior keeps it at 40). s_LightBank 28 is slot-mirrored, not followed"
 
-# --- anor_interior / anor_gwynevere grade (round 2) -------------------------------------------------------
+# --- anor_interior grade (round 3) --------------------------------------------------------------------------
+# Round 2 trimmed ToneCorrect 11: anor_gwynevere sat moved x1.024 -> x0.989 but anor_interior only x1.084 -> x1.077,
+# so the interior is graded by ToneCorrect 10 (with the entrance). The row-11 trim is reverted.
 [[edit]]
 bank = "ToneCorrectBank"
 slot = 0
-rows = [11]
-op = "set"
-fields = { saturation = 1.06 }
-why = "anor_interior sat x1.084 (two captures, repeat x1.000) vs 0.92..1.04: the fill cut removes grey fill (x1.012 of it is the removed sun leak, Phase-0 sat). After the row-23 ease (~x1.05 predicted), saturation 1.1 -> 1.06 (x0.964, inside the bible's 1.00-1.10 and band 0.9-1.15; simulated mean_sat x0.98) gives ~x1.03. Shared with anor_gwynevere (x1.023, rose +0.0125 abs at the noise edge): simulated x1.003, so it lands at vanilla, not below. Oklab moves <= 0.002. Revert this edit if anor_gwynevere sat reads below 0.95 in round 2. Slot 1 ToneCorrect 11 differs in vanilla (no mirror)"
+rows = [10]
+op = "mul"
+fields = { saturation = 0.96 }
+why = "anor_interior sat x1.077 (round 2) vs 0.92..1.04: fill cut removes grey fill. x0.96 on row 10 gives ~x1.035; anor_entrance (same row) x1.107 -> ~x1.065 (range 0.98..1.12)"

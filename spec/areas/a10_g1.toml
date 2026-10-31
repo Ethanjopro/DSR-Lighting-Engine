@@ -193,3 +193,11 @@ slot = 0
 rows = [10, 20]
 why = "Water on this row reads the same c6 light as the sun: keep vanilla colA_s and tint so the water sheen stays vanilla (W3 fixer water census). The sun here runs at the vanilla-derived strength; judge it in W4."
 
+
+# --- round 3 ----------------------------------------------------------------------------------------------
+[[edit]]
+bank = "ToneCorrectBank"
+rows = [10]
+op = "mul"
+fields = { saturation = 0.985 }
+why = "burg sat x1.101 in round 2 (main, limit 1.10): the fill cut removes grey fill. 0.83 -> 0.818 compensates part of it; parish_altar (same row) sat x1.039 -> ~x1.025"

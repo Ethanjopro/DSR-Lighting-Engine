@@ -1,3 +1,4 @@
+# DROPPED after W4 round 2: effect below the capture noise or not reaching its target (data in captures/w4r2). Not built.
 # G5 / a17 SIGN-OFF: optional experiments (README section 6 sign-off gates). Drop this file to remove them.
 # Crystal Cave highlight recovery: the bible marks it optional and to be tested first (targets crystal_cave notes).
 # Round 2: resized from x0.95 to x0.975 after the round-1 measurement (see the why).

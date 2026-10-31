@@ -1,3 +1,4 @@
+# DROPPED after W4 round 2: effect below the capture noise or not reaching its target (data in captures/w4r2). Not built.
 # G1 sign-off: Firelink green. README section 6: colour resting on an unverified single source
 # (fromsoftserve, halved) needs the user's approval on its first capture. Drop this file (rename to .toml.off) to
 # remove the move on its own.

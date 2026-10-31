@@ -1,3 +1,4 @@
+# DROPPED after W4 round 2: effect below the capture noise or not reaching its target (data in captures/w4r2). Not built.
 # G1 sign-off: Burg cooling (Fog 10, plus the ToneCorrect 10 saturation trim that pays for its chroma). README
 # section 6: colour resting on unverified single sources needs the user's approval on its first capture. Drop this
 # file (rename to .toml.off) to remove the move on its own; a10_g1.toml validates without it.

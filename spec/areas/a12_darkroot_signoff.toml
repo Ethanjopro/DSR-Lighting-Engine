@@ -11,8 +11,8 @@ area = "a12"
 bank = "LightScatteringBank"
 rows = [0]
 op = "add"
-fields = { sunR = -6, sunG = 5 }
-why = "darkroot_garden oklab a -0.009..-0.002, b -0.008..+0.002: greener haze that keeps its blue (vanilla 100/100/130 -> 94/105/130; round-1 sunR -8 / sunG +10 / sunB -8 measured db +0.0042, so sunB stays vanilla and the green is halved to the recipe floor sunG +5). Predicted on top of round-2 main: da about -0.0034, db about 0, sat x1.03, dEV +0.01..+0.02 (the greener haze is slightly brighter)"
+fields = { sunR = -6, sunG = 5, sunB = 6 }
+why = "round 3: sunB +6 because the round-2 haze cut warmed the garden (b +0.0038 full / +0.0051 main). darkroot_garden oklab a -0.009..-0.002, b -0.008..+0.002: greener haze that keeps its blue (vanilla 100/100/130 -> 94/105/130; round-1 sunR -8 / sunG +10 / sunB -8 measured db +0.0042, so sunB stays vanilla and the green is halved to the recipe floor sunG +5). Predicted on top of round-2 main: da about -0.0034, db about 0, sat x1.03, dEV +0.01..+0.02 (the greener haze is slightly brighter)"
 
 [[edit]]
 bank = "ToneCorrectBank"
