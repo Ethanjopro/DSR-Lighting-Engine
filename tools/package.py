@@ -71,7 +71,7 @@ def main() -> None:
             shutil.copyfile(ROOT / "release" / s, out / s)
     (out / "manifest.json").write_text(json.dumps({"name": args.name, "version": args.version, "files": files}, indent=1),
                                        encoding="utf-8")
-    zpath = out.with_suffix(".zip")
+    zpath = out.parent / (out.name + ".zip")  # not with_suffix: the version contains dots
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
         for f in sorted(out.rglob("*")):
             if f.is_file():
