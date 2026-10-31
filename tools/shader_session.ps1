@@ -9,7 +9,8 @@ param(
     [Parameter(Mandatory)] [string]$Run,
     [Parameter(Mandatory)] [string[]]$Variants,
     [Parameter(Mandatory)] [string[]]$Only,
-    [string[]]$CaptureVariants
+    [string[]]$CaptureVariants,
+    [string[]]$BurstOnly       # also run taa_burst_set.ps1 at these bonfires after the captures (vanilla DrawParam)
 )
 $root = Split-Path -Parent $PSScriptRoot
 $game = "C:\Program Files (x86)\Steam\steamapps\common\DARK SOULS REMASTERED"
@@ -52,6 +53,7 @@ try {
         # capture_set reinstalls the same files while running (harmless: shaders are not re-read) and restores at the end.
         $cap = if ($CaptureVariants) { $CaptureVariants } else { @($v) }
         & "$root\tools\capture_set.ps1" -Run "$Run\$(Split-Path -Leaf $v)" -Variants $cap -Only $Only
+        if ($BurstOnly) { & "$root\tools\taa_burst_set.ps1" -Run "$Run\burst\$(Split-Path -Leaf $v)" -Only $BurstOnly }
     }
 } finally {
     & "$root\tools\restore_vanilla.ps1" | Out-Null
