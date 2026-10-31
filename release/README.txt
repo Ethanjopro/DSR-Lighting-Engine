@@ -21,12 +21,16 @@ What it changes
 * Specular occlusion: reflections no longer glow out of cracks and dark corners.
 * Smoother torch and bonfire light: the bright ring at the edge of point lights is gone, and their
   reach and brightness stay within a few percent of vanilla.
+* Crisper anti-aliasing: the game's TAA uses a sharper (Catmull-Rom) history and gentle
+  contrast-adaptive sharpening. Fine detail comes back at high resolutions without halos.
+  Strong edges are left alone, and the sharpening cannot build up from frame to frame.
 
 Files
 -----
 The mod replaces only loose, client-side visual files:
   param\DrawParam\a10..a18_DrawParam.parambnd.dcx
   shader\FRPG_FlverPBL_fpo_DX11.shaderbnd.dcx
+  shader\FRPG_Filter_DX11.shaderbnd.dcx
 It never touches the executable, DLLs, GameParam, maps, events or saves, and it injects nothing.
 
 Install
@@ -50,7 +54,9 @@ Compatibility
 * Works with texture packs (e.g. DSR-TPUP) and UI mods.
 * Does NOT work with other mods that replace DrawParam or shader files, e.g. DSR Restored Lighting,
   Visual Overhaul, DSR Shader Overhaul or similar lighting mods. Uninstall those first.
-* ReShade can run on top, but keep its colour and sharpening effects subtle.
+* ReShade can run on top, but keep its colour effects subtle. The mod already sharpens, so skip
+  ReShade sharpening.
+* The TAA improvements apply when the in-game anti-aliasing option is on (the default).
 
 Online play
 -----------
