@@ -421,7 +421,7 @@
     -0.35,
     0.1
    ],
-   "notes": "colour move halved (single unverified source); Scatter 20/22/23 unchanged; lightShaftPower stays 0 | _round2: char_ev_delta warn-only (enforce.char false) until sun-facing captures (README H1) exist: baseline repeat rep_char 0.458 (53% of pixels moved, smoke/bonfire) against a 0.45-wide window, so not even a 2-capture mean discriminates; ev on the mean of >= 2 captures. check_looks.py only reads enforce ev/sat/oklab today (the char check never consults it), so firelink char still prints FAIL until the checker gains this key",
+   "notes": "colour move halved (single unverified source); Scatter 20/22/23 unchanged; lightShaftPower stays 0 | _round2: char_ev_delta warn-only (enforce.char false) until sun-facing captures (README H1) exist: baseline repeat rep_char 0.458 (53% of pixels moved, smoke/bonfire) against a 0.45-wide window, so not even a 2-capture mean discriminates; ev on the mean of >= 2 captures. check_looks.py honours enforce.char (warn-only) since round 2",
    "enforce": {
     "char": false
    }
@@ -458,6 +458,7 @@
    "notes": "LightBank 3 colA_d 20->16 or 17 (18 is unreachable: s_ 5)"
   },
   "depths_dragon": {
+   "char_box": [1790, 1060, 2110, 1500],
    "group": "G1",
    "priority": "low",
    "ev_delta": [

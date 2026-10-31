@@ -9,7 +9,8 @@ Usage:
   python tools/check_looks.py captures/r1/tuned captures/r2/tuned --repeat   average repeated captures
   options: --baseline DIR [DIR ...] (default captures/baseline_vanilla/vanilla; several = averaged repeats)
            --targets PATH, --group G1 [G2 ...], --slug s [...], --priority high [...]
-           --crops      also compute the character-crop checks from the PNGs (needs numpy)
+           --crops      also compute the character-crop checks from the PNGs (needs numpy; averaged over
+                        repeat captures; a bonfire may set its own "char_box": [x0, y0, x1, y1])
            --json OUT   write the full report as JSON
            --verbose    list passing checks too
 Exit code 1 if any FAIL (SKIP and WARN do not fail).
@@ -139,7 +140,7 @@ def read_png(path: Path):
     return img[:, :, :3]
 
 
-def crop_evs(png: Path) -> dict:
+def crop_evs(png: Path, char_box=CHAR_BOX) -> dict:
     """char_ev / env_ev = log2(mean linear luminance) of the character box and of the frame without HUD, prompt and
     character column, sampled every 2nd pixel like StatsJson."""
     import numpy as np
@@ -159,7 +160,7 @@ def crop_evs(png: Path) -> dict:
 
     sx, sy = w / 3840.0, h / 2160.0
     scale = lambda boxes: [(x0 * sx, y0 * sy, x1 * sx, y1 * sy) for x0, y0, x1, y1 in boxes]
-    char = mask(scale([CHAR_BOX]))
+    char = mask(scale([tuple(char_box)]))
     env = ~mask(scale(ENV_EXCLUDE))
     return {"char_ev": math.log2(max(float(lum[char].mean()), 1e-9)),
             "env_ev": math.log2(max(float(lum[env].mean()), 1e-9))}
@@ -187,7 +188,7 @@ def exposure_delta(t: dict, new: dict, base: dict) -> tuple[str, float]:
 
 def check_bonfire(slug: str, t: dict, new: dict, base: dict, crops: dict | None) -> list[dict]:
     res = []
-    enf = {"ev": True, "sat": True, "oklab": True, **t.get("enforce", {})}
+    enf = {"ev": True, "sat": True, "oklab": True, "char": True, **t.get("enforce", {})}
 
     def add(name, value, rng, level="fail", note=""):
         ok = in_range(value, rng)
@@ -229,7 +230,8 @@ def check_bonfire(slug: str, t: dict, new: dict, base: dict, crops: dict | None)
         else:
             dc = crops["new"]["char_ev"] - crops["base"]["char_ev"]
             de = crops["new"]["env_ev"] - crops["base"]["env_ev"]
-            add(name, dc if name == "char_ev_delta" else dc - de, t[name])
+            add(name, dc if name == "char_ev_delta" else dc - de, t[name], "fail" if enf["char"] else "warn",
+                "" if enf["char"] else "not enforced here")
     return res
 
 
@@ -238,17 +240,21 @@ def verdict(checks: list[dict]) -> str:
     return "FAIL" if "FAIL" in st else ("WARN" if "WARN" in st else "PASS")
 
 
-def crop_pair(slug: str, new: dict, base: dict) -> dict:
+def crop_pair(slug: str, new: dict, base: dict, char_box=CHAR_BOX) -> dict:
+    """Crop EVs averaged over every repeat capture of the view (mean of the per-capture log2 values)."""
     try:
         import numpy  # noqa: F401
     except ImportError:
         return {"error": "numpy not available"}
-    pick = lambda s: next((Path(d) / f"{slug}.png" for d in s["_dirs"] if (Path(d) / f"{slug}.png").exists()), None)
+    pick = lambda s: [Path(d) / f"{slug}.png" for d in s["_dirs"] if (Path(d) / f"{slug}.png").exists()]
     pn, pb = pick(new), pick(base)
-    if pn is None or pb is None:
+    if not pn or not pb:
         return {"error": "PNG missing"}
     try:
-        return {"new": crop_evs(pn), "base": crop_evs(pb)}
+        def avg(paths):
+            evs = [crop_evs(q, char_box) for q in paths]
+            return {k: sum(e[k] for e in evs) / len(evs) for k in ("char_ev", "env_ev")}
+        return {"new": avg(pn), "base": avg(pb)}
     except Exception as e:  # unsupported PNG etc.
         return {"error": f"crop failed: {e}"}
 
@@ -266,7 +272,8 @@ def run_variant(name: str, dirs: list[Path], base: dict, targets: dict, slugs: l
             report["bonfires"][slug] = {"verdict": "SKIP", "group": t["group"], "priority": t["priority"],
                                         "note": "no capture in run" if slug not in new else "no baseline capture"}
             continue
-        crops = crop_pair(slug, new[slug], base[slug]) if use_crops and ("char_ev_delta" in t or "d_char_env" in t) else None
+        crops = (crop_pair(slug, new[slug], base[slug], t.get("char_box", CHAR_BOX))
+                 if use_crops and ("char_ev_delta" in t or "d_char_env" in t) else None)
         checks = check_bonfire(slug, t, new[slug], base[slug], crops)
         metric, d = exposure_delta(t, new[slug], base[slug])
         deltas[slug] = {"exposure": d, "metric": metric, "oklab_b": new[slug]["mid_oklab_b"] - base[slug]["mid_oklab_b"]}
