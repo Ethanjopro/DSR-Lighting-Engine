@@ -23,6 +23,7 @@ if (-not (Test-Path $test)) { throw "no test save at $test" }
 Copy-Item $test (Join-Path $root "saves\backup\test_session_end.before-$(Get-Date -Format yyyyMMdd-HHmmss).sl2")
 Copy-Item $test $live -Force
 Write-Output "test save in (previous copy kept in saves\backup); running session"
+$sessionStart = Get-Date
 
 try {
     & $Script
@@ -38,10 +39,18 @@ try {
         }
     }
     for ($i = 0; $i -lt 30 -and (Test-DsrRunning); $i++) { Start-Sleep 1 }
-    & "$root\tools\restore_vanilla.ps1" | Out-Null
+    if (Test-DsrRunning) { Write-Warning "the game did not exit; killing it"; Stop-DsrHard; Start-Sleep 3 }
+    # A crash can leave a Windows Error Reporting process holding the game's files.
+    Get-CimInstance Win32_Process -Filter "Name='WerFault.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CreationDate -ge $sessionStart } |
+        ForEach-Object { Write-Warning "closing WerFault (pid $($_.ProcessId)) left by a crash"; Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    # A failed file restore must never skip the save restore below; it is reported after the save is back.
+    $restoreError = $null
+    try { & "$root\tools\restore_vanilla.ps1" | Out-Null } catch { $restoreError = $_ }
     Copy-Item $live $test -Force
     Copy-Item $realBak $live -Force
     $sha = Get-FileSha $live
     if ($sha -ne $realSha) { Write-Error "REAL SAVE RESTORE FAILED: live save hash $sha" }
     else { Write-Output "real save restored and verified ($($sha.Substring(0, 8)))" }
+    if ($restoreError) { Write-Error "VANILLA FILE RESTORE FAILED: $restoreError" }
 }
