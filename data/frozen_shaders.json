@@ -1,13 +1,28 @@
 {
- "_doc": "Shader set frozen for re-baseline and per-area tuning (PLAN: freeze shaders + re-baseline). Rebuild with: .venv\Scripts\python.exe shaders\tools\build_features.py (config all_sunA). Install folder: dist/_shader_install/frozen_v1.",
+ "_doc": "Shader set frozen for re-baseline and per-area tuning (PLAN: freeze shaders + re-baseline). Rebuild with: .venv/Scripts/python.exe shaders/tools/build_features.py (config all_sunA). Install folder: dist/_shader_install/frozen_v1.",
  "frozen": "2026-10-30",
  "source_commit": "c5b6e31",
  "FRPG_FlverPBL_fpo_DX11.shaderbnd.dcx": {
   "sha256": "ec0037c75059007ee7fef67be360aed9e24eedf9bf3d1a2c1a7098904e38b936",
   "defines": "/D DSRLE_FEATURES /D DSRLE_ALL /D DSRLE_SUN_A",
-  "features": ["DSRLE_SHADOW_SOFT", "DSRLE_SPEC_OCC", "DSRLE_PL_SMOOTH", "DSRLE_SUN_A (Snow excluded, spec-only gate)"],
+  "features": [
+   "DSRLE_SHADOW_SOFT",
+   "DSRLE_SPEC_OCC",
+   "DSRLE_PL_SMOOTH",
+   "DSRLE_SUN_A (Snow excluded, spec-only gate)"
+  ],
   "blobs_replaced": 672,
   "evidence": "data/session3_ab.json"
  },
- "FRPG_Filter_DX11.shaderbnd.dcx": "vanilla (sharpening is post-freeze polish)"
+ "FRPG_Filter_DX11.shaderbnd.dcx": {
+  "sha256": "ac87f8129a8b9461fedbd69e6d1320fa61598b26663958967de91ca4ec36478b",
+  "defines": "/D DSRLE_FEATURES /D DSRLE_TAA_ALL (only FRPG_Fil_ResolveTAA.fpo differs from vanilla)",
+  "features": [
+   "DSRLE_TAA_CATMULL (9-tap)",
+   "DSRLE_TAA_SHARPEN (0.3)"
+  ],
+  "evidence": "captures/w4r2/burst_report.json (session 6): standstill detail x1.18-1.30, pan detail x1.03-1.14, flicker +6..12%; exposure within noise",
+  "added": "2026-10-30 (post-freeze polish)"
+ },
+ "release_note": "Release archives are these minus debug chunks (tools/package.py -> shaders/tools/strip_debug.py)."
 }
