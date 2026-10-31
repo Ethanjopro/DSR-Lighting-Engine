@@ -2,9 +2,15 @@
 # and iterates. Source of every number: looks/G1.md lever recipes (middle of range), corrected by looks/README.md
 # (P2: LightBank-only colA_s classes off 0 / low ~25 / mid ~40; S1: rows 2/3/4 are spec-only and stay vanilla;
 # P9: every live row with 0 < colA_s <= 60 gets a decision here). Colour moves resting on unverified sources and
-# the optional depths_dragon shaft live in three sign-off files, each droppable on its own:
-# a10_burg_parish_signoff.toml (Burg/Parish cooling), a10_firelink_signoff.toml (Firelink green),
-# a10_depths_signoff.toml (depths_dragon shaft experiment).
+# the optional depths_dragon shaft live in sign-off files, each droppable on its own:
+# a10_burg_parish_signoff.toml (Burg cooling: Fog 10 + ToneCorrect 10 saturation), a10_firelink_signoff.toml
+# (Firelink green), a10_depths_signoff.toml (depths_dragon shaft experiment). The Parish cooling (ToneCorrect 11,
+# a10_parish_signoff.toml.off) was DROPPED in round 2: net b -0.0007 vs main is under noise and parish main passes b.
+#
+# W4 round 2 (G1): one main edit. Row 10 colA_d 24 -> 26 (map row only) lifts parish_altar, which round 1 put at
+# dEV -0.33 (main) / -0.35 (full) against its -0.30 floor; chars 15/17 keep their cut. Everything else in this file
+# is unchanged from round 1: burg -0.27, parish -0.40, depths -0.02 pass; firelink and depths_dragon misses are
+# capture noise (smoke / animated mist, see captures/w4r1/noise_table.txt).
 #
 # EV estimates use data/sweep_sensitivity.json per doubling: ambient (colA_u+colA_d) parish 2.05 / firelink 0.58,
 # grayKey parish 1.75 / firelink 1.04 (from the x1.5 point), shadow endDist firelink -0.12, bloom firelink +0.12.
@@ -14,7 +20,9 @@
 # NOT SHIPPABLE ALONE for the colour targets of burg, parish and parish_altar (W3 fixer note). This file only cuts
 # fill and adds a warm low sun: cutting the cool row-10 fill (u 220/240/255) while the warm fire stays, plus the warm
 # sun tint, moves b WARMER (direction up, size not modelled, probably +0.000..+0.003) against their cooling targets
-# (b -0.008..-0.002; parish -0.012..+0.001). The cooling lives in a10_burg_parish_signoff.toml.
+# (b -0.008..-0.002; parish -0.012..+0.001). The cooling lives in a10_burg_parish_signoff.toml (Burg, altar); the
+# Parish cooling was dropped in round 2. Round 1 main measured burg b +0.0006, altar -0.0008 (FAIL), parish -0.0012
+# (PASS). Round 2 pairs are scored on 2-capture means; if burg - parish exceeds +0.28, step parish row 11, not burg.
 # Pair watch (W4): burg -0.19 (parish proxy) / +0.01 (firelink proxy) vs parish about -0.36 can reach +0.37 against
 # +-0.30, and depths - burg can reach -0.29 against >= -0.30. None of the three has its own sweep: if burg lands within
 # -0.05 of vanilla while parish is below -0.30, step parish (row 11), not burg.
@@ -30,10 +38,17 @@ area = "a10"
 
 [[edit]]
 bank = "LightBank"
-rows = [10, 15, 17]
+rows = [10]
+op = "mul"
+fields = { colA_u = 0.91, colA_d = 0.87 }
+why = "burg/parish_altar: less flat exterior fill, ground bounce cut more than sky (G1 row 10 u x0.88-0.95, d x0.75-0.85). Round 2: colA_d x0.80 -> x0.87 (24 -> 26), u held at 41. Round 1 (u 41, d 24 + grayKey 0.27) measured parish_altar dEV -0.33 main / -0.35 full vs floor -0.30 (repeat 0.03; walls -0.43..-0.46, deterministic), burg -0.27. That cut was energy x0.748 for -0.33 net, ~1.0-1.2 EV per energy doubling; d 26 raises row-10 energy to x0.786 (+0.07 doublings) = est. +0.06..+0.09 EV on both views. Map row only: the altar char crop (+0.04 vs <= +0.10) and the unmeasured Capra guard view (ToneMap 10) are why this is not a grayKey step. d stays cut harder than u; lockstep chars 15/17 at x0.80 = 0.92 of the map ratio"
+
+[[edit]]
+bank = "LightBank"
+rows = [15, 17]
 op = "mul"
 fields = { colA_u = 0.91, colA_d = 0.80 }
-why = "burg/parish_altar: less flat exterior fill, ground bounce cut more than sky (G1 row 10 u x0.88-0.95, d x0.75-0.85); char rows 15/17 track row 10 so characters keep sitting in the scene. Est. row-10 views -0.11..-0.39 EV before the ToneMap 10 recovery"
+why = "burg/parish_altar char rows: track row 10 (u x0.91), ground bounce kept at round 1's x0.80 so characters keep sitting in the scene (altar char crop +0.04 in round 1, ceiling +0.10). 0.80 / row 10's 0.867 = 0.92, inside the +-10% lockstep"
 
 [[edit]]
 bank = "LightBank"

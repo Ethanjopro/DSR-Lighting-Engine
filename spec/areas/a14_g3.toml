@@ -1,4 +1,5 @@
-# G3 round 1 (W3 draft, before measurement): Blighttown/Quelaag (m14_00) and Demon Ruins/Lost Izalith (m14_01).
+# G3 round 2 (W4, after the round-1 capture in captures/w4r1): Blighttown/Quelaag (m14_00) and Demon Ruins/Lost
+# Izalith (m14_01). Round 2 changes only the izalith_2 de-sheen (row 12 removed, row 15 added); the rest is round 1.
 # The Blighttown lift is sign-off gated and lives in a14_blighttown_signoff.toml. Quelaag holds.
 # Sources: looks/G3.md sections 3 and 8-11, looks/README.md sections 2-4 and 8, looks/targets.json.
 area = "a14"
@@ -46,13 +47,20 @@ op = "mul"
 fields = { bloomMul = 1.125 }
 why = "izalith_1 p99 >= -3, clip <= +1: lava bloom that reads at range (80 -> 90); Light and ToneCorrect hold"
 
-# --- Lost Izalith 2: cut the cool white fill that makes the character sheen ---------------------
-# Row 12 'Izalith' (m14_01 only: 14 map pieces, 101 objects, 11 collisions). x0.95 (below the x0.925 recipe mid):
-# ToneMap 12 runs min 0.18 / max 0.25, so the cut lands almost 1:1, and izalith_2 is a crushed view.
+# --- Lost Izalith 2: cut the cyan IBL sheen on the character ------------------------------------
+# Round 1 put this on LightBank 12 'Izalith' (colA_u x0.95, envSpc_colA x0.9). It was a no-op at izalith_2: static
+# character and environment pixels moved by a median of 0.000 (d_char_env -0.008 / -0.022 over two captures of the
+# identical a14_g3 build). So row 12 lights neither the bonfire character nor the visible map there, and the edit only
+# changed 14 map pieces and 101 objects elsewhere. Removed in round 2.
+# Round-1 nulls also exclude LightBank 6 (DR1's envDif cut moved DR1 by -0.10 EV but not izalith_2). Of the other
+# m14_01 rows with place-1411 collisions, 7 has a pink envSpc (255/155/155), while 8 and 15 have the cyan envSpc that
+# the izalith_2 armour sheen shows. Row 15 'Lower Ruins' (23 collisions + 4 objects, no map pieces) has the
+# character-row shape, and looks/G3.md already names it for the DR3 de-sheen ('if row 15 is the character row').
+# INFERRED ROW (like row 42 in round 1): if izalith_2 does not move in round 2, the row is 8; then revert this edit.
 [[edit]]
 bank = "LightBank"
-rows = [12]
+rows = [15]
 op = "mul"
-fields = { colA_u = 0.95, envSpc_colA = 0.9 }
-why = "izalith_2 d_char_env -0.4..-0.05, p50 ev -0.25..+0.1: less cool fill and specular sheen on the character (colA_u 190 -> 180, envSpc 100 -> 90)"
+fields = { envDif_colA = 0.85, envSpc_colA = 0.8 }
+why = "izalith_2 d_char_env -0.4..-0.05: cut the cyan IBL sheen on the character (envDif 300 -> 255, envSpc 150 -> 120). Inferred row: round 1 showed rows 6 and 12 are not live at izalith_2, and 15 is the cyan character-shaped row the bible names for the DR3 de-sheen. Sized from row 42 at great_hollow (envDif -50 / envSpc -150 gave char -0.29): predicted d_char_env -0.10..-0.20 if row 15 is live, 0 if not (then the row is 8). If DR3 or izalith_1 characters also stand on row 15 they dim slightly; neither has a character target"
 

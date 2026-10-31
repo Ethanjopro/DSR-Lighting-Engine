@@ -5,6 +5,13 @@
 # Sun class: off for every view (indoors, caves; the exterior rows 0/7/10/17 have no G5 view yet).
 # ToneMap 0 (shared by the Archives and Crystal Cave, pair archives_balcony <-> crystal_cave) is not touched.
 # Optional Crystal Cave highlight recovery lives in a17_crystal_signoff.toml.
+# Round 2 review (captures/w4r1): no edit in this file. The de-glow reached the elevator character (crop -0.17,
+# diffuse armour about -0.45 EV, uniform). At the balcony it reached almost nothing: crop -0.087, of which about
+# -0.07 is the removed sun leak (sun1 +0.07). That character stands outside the library on warm-pink stone. Its
+# colour matches the exterior rows 0/10 (envDif 255/205/205 x400), which rules out row 18 (white envDif, weak
+# fill). Row 10 is ruled out by its own null response: its round-1 envDif x0.9 cut would have darkened the armour
+# by about -0.15 EV, and no uniform darkening appeared. That leaves the shared base row 0, which also carries map
+# pieces, objects and the Crystal Cave, so it is not cut blind. Confirm the live row with a one-row probe first.
 area = "a17"
 
 # --- Sun decisions ------------------------------------------------------------------------

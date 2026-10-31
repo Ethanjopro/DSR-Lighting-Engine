@@ -1,3 +1,7 @@
+# DROPPED in W4 round 2 (fixer, per G4 and the cross-check): renamed to .toml.off, so neither build reads it. Do not
+# rename it back as part of a main-only build step; restoring it is the user's sign-off call. Why: r1_full - r1_main
+# at sens measured da -0.00004, db -0.00002, EV -0.0015 (below repeat noise), and the collision pairing puts the sens
+# view on Fog 0, not Fog 1; judging it would need a capture inside a Fog-1 interior room.
 # G4 round 1, needs user sign-off: optional colour move for Sen's Fortress. It rests only on the Burg analogy
 # (fromsoftserve: PTDE Burg fog bluer and weaker; unverified single source). Drop this file to remove it.
 area = "a15"

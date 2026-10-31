@@ -1,6 +1,10 @@
 # G4 round 1: lit Anor Londo (m15_01, slot 0; LightBank rows 20-35, ToneCorrect 10). Sources: looks/G4.md,
 # looks/README.md, looks/targets.json (anor_entrance, anor_interior, anor_gwynevere). Hue is held in round 1;
 # the Scatter/Fog/ambient/grade warming waits for the signed-off round 2. Drafted before measurement.
+# Round 2 (W4, from captures/w4r1, two captures each: r1_main and r1_full carry the same Anor edits): anor_interior
+# missed ev (-0.52), sat (x1.084) and char (-0.81). Row 23 envDif eased, the char-row fill/specular cuts on rows 31/33
+# removed (the interior sun-off is the de-glow), ToneCorrect 11 saturation added. anor_entrance and anor_gwynevere
+# passed and get no direct edit.
 area = "a15"
 
 # --- Sun (P9 decisions for every live Anor Londo row in slot 0) -------------------------------------------
@@ -37,37 +41,23 @@ op = "set"
 fields = { envDif_colA = 90 }
 why = "anor_entrance chars: envDif 100 -> 90 (85-95) so the sun, not the fill, models them; colA_u left alone"
 
-[[edit]]
-bank = "LightBank"
-slot = 0
-rows = [31]
-op = "set"
-fields = { colA_u = 22, colA_d = 13 }
-why = "anor_interior char over-light (Restored Lighting), char_ev -0.40..0.00: x0.88 (31: 25/15 -> 22/13), just above the bible's x0.70-0.85 because README 6 argues for less: against the re-baseline the sun removal on rows 31/33 already costs the char crop -0.15..-0.25 (sun_ab anor_interior +0.21..+0.25 leak), so x0.8 (-0.24) would total -0.39..-0.49. Est. fill -0.10..-0.13, total -0.25..-0.38 (re-baseline) / -0.10..-0.13 (Phase 0); also anor_gwynevere via row 31"
-
-[[edit]]
-bank = "LightBank"
-slot = 0
-rows = [33]
-op = "set"
-fields = { colA_u = 31, colA_d = 15 }
-why = "anor_interior char over-light, char_ev -0.40..0.00: row 33 (23 collisions, the busier interior char row) x0.88 (35/17 -> 31/15), same re-baseline reasoning as row 31"
-
-[[edit]]
-bank = "LightBank"
-slot = 0
-rows = [31]
-op = "set"
-fields = { envSpc_colA = 135 }
-why = "anor_interior: row 31 envSpc 180 -> 135 (120-150, x0.75, above the x0.6 black-metal limit)"
+# Round 2: the round-1 char-row cuts (31 colA 25/15 -> 22/13 and envSpc 180 -> 135; 33 colA 35/17 -> 31/15) are
+# removed. Round 1 measured anor_interior char -0.81/-0.80 (two captures, repeat +0.05) vs -0.40..0: the sun-off on
+# rows 31/33 alone takes the re-baseline leak away (sun_ab +0.21..+0.25 on the box; the armour pixels fell 1-2.5 EV),
+# and the row-23 walls inside the box fell too. A partial ease still models below -0.40; the char row (31 or 33) is
+# not identifiable from the capture, so both go back to vanilla. Restored Lighting kept DSR's specular on purpose,
+# so the envSpc cut also went against the cited source. G4 predicted char -0.30..-0.38 (sun-off + walls only); the
+# round-2 cross-check widens it to -0.36..-0.55, because the sun share of the crop is 0.30-0.35 by sun_ab (scaled to
+# the CHAR box) but 0.50 by Phase-0 vs re-baseline, and the row-23 ease recovers less on the sweep slope. Judge on
+# both captures; do not widen the char target before this cuts-removed capture exists.
 
 [[edit]]
 bank = "LightBank"
 slot = 0
 rows = [23]
 op = "set"
-fields = { envDif_colA = 225 }
-why = "anor_interior flat fill: row 23 envDif 280 -> 225 (200-250); its colA cannot be lockstepped. s_LightBank 23 is slot-mirrored, so it is not followed (would move dark Anor Londo)"
+fields = { envDif_colA = 250 }
+why = "anor_interior flat fill, eased in round 2: row 23 envDif 280 -> 250 (x0.89, top of 200-250; round 1 was 225 = x0.80). Round 1 measured frame ev -0.52 (two captures, repeat 0.003) vs -0.45..-0.05: sun-off -0.06 (sun1 and Phase-0 agree), char rows ~-0.03, row 23 ~-0.42 for log2 x0.80 = -0.31, i.e. ~1.3 EV per halving in the cut direction (the x2 sweep read 0.6). Half the log cut predicts ev -0.27..-0.31 and sat x1.084 -> ~x1.05 before the ToneCorrect 11 edit; on the sweep slope (+0.597 per doubling) the ease recovers only ~0.09, so the round-2 cross-check predicts ev -0.27..-0.43 (still inside -0.45). s_LightBank is immutable"
 
 [[edit]]
 bank = "LightBank"
@@ -76,3 +66,12 @@ rows = [28]
 op = "mul"
 fields = { envDif_colA = 0.85 }
 why = "anor_gwynevere: statue row 28 envDif x0.85 (x0.8-0.9), hue held; row 21 held (anor_interior keeps it at 40). s_LightBank 28 is slot-mirrored, not followed"
+
+# --- anor_interior / anor_gwynevere grade (round 2) -------------------------------------------------------
+[[edit]]
+bank = "ToneCorrectBank"
+slot = 0
+rows = [11]
+op = "set"
+fields = { saturation = 1.06 }
+why = "anor_interior sat x1.084 (two captures, repeat x1.000) vs 0.92..1.04: the fill cut removes grey fill (x1.012 of it is the removed sun leak, Phase-0 sat). After the row-23 ease (~x1.05 predicted), saturation 1.1 -> 1.06 (x0.964, inside the bible's 1.00-1.10 and band 0.9-1.15; simulated mean_sat x0.98) gives ~x1.03. Shared with anor_gwynevere (x1.023, rose +0.0125 abs at the noise edge): simulated x1.003, so it lands at vanilla, not below. Oklab moves <= 0.002. Revert this edit if anor_gwynevere sat reads below 0.95 in round 2. Slot 1 ToneCorrect 11 differs in vanilla (no mirror)"

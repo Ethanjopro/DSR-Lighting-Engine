@@ -1,6 +1,12 @@
-# G1 round 1 (W3) sign-off: Firelink green. README section 6: colour resting on an unverified single source
+# G1 sign-off: Firelink green. README section 6: colour resting on an unverified single source
 # (fromsoftserve, halved) needs the user's approval on its first capture. Drop this file (rename to .toml.off) to
-# remove the move on its own. Split from the former a10_g1_signoff.toml, content unchanged.
+# remove the move on its own.
+# Round 2 (W4 G1): both levers scaled to ~1/5. Round 1 (TC 20 R 0.985 / B 1.015, Fog 20 90/97/97) measured, r1_full
+# vs r1_main: a -0.0101, b -0.0148, sat x1.12, a uniform cyan cast over ruins, tree, grass, character and sky
+# (firelink full a -0.0105 / b -0.0137 vs targets a -0.004..+0.002, b -0.005..+0.001: a re-grade, ~8x the estimate).
+# The split between the two levers is unresolved: Fog 20 starts at fogBeginZ -150, so fog is a large share of every
+# Firelink pixel, and a fog-only change (Fog 10 at parish_altar) is just as flat over lightness as this shift.
+# Scaling both by the same factor lands the sum regardless of the split; round 2 measures the sum.
 # Skipped (G1): ToneCorrect 20 saturation x0.985 (below sat noise), ToneMap 20 maxAdapredLum (near-null).
 
 area = "a10"
@@ -9,12 +15,12 @@ area = "a10"
 bank = "ToneCorrectBank"
 rows = [20]
 op = "set"
-fields = { brightnessR = 0.985, brightnessB = 1.015 }
-why = "firelink a <= +0.002, b <= +0.001: slightly greener-blue with less red, halved (G1: brightnessR 1.0->0.98-0.99, brightnessB 1.0->1.01-1.02). Est. a ~-0.001, b -0.001..-0.002. Also moves firelink_abyss_entrance (guard view). Sign-off: Firelink green"
+fields = { brightnessR = 0.997, brightnessB = 1.003 }
+why = "firelink a <= +0.002, b <= +0.001: slightly greener-blue with less red (G1: brightnessR 1.0->0.98-0.99, brightnessB 1.0->1.01-1.02, halved). Round 1 at 0.985/1.015 plus Fog 20 gave a -0.0101 / b -0.0148 vs main (8x the estimate; row 20 runs saturation 1.2 / contrast 1.15). Round 2: 1/5 of the round-1 step. Est. with the Fog 20 step below: a -0.0013..-0.0018, b -0.0033..-0.0036 vs main = firelink a -0.0017..-0.0022, b -0.0022..-0.0025, sat x1.02 over main. Also moves firelink_abyss_entrance (guard view, hold a/b +-0.004). Sign-off: Firelink green"
 
 [[edit]]
 bank = "FogBank"
 rows = [20]
 op = "set"
-fields = { colR = 90, colG = 97, colB = 97 }
-why = "firelink: slightly cooler-green distance haze, density held (G1: colR 95->88-93, colG 95-100, colB 92->95-100). Sign-off: Firelink green"
+fields = { colR = 94, colB = 93 }
+why = "firelink: slightly cooler distance haze, density held (G1: colR 95->88-93, colG 95-100, colB 92->95-100). Round 1's 90/97/97 shifted the fog colour by Oklab a -0.0071 / b -0.0070 and (with TC 20) cast the whole frame cyan: Fog 20 starts at fogBeginZ -150, so it covers every pixel, not just the distance. Round 2: 94/95/93 (colG vanilla), fog colour a -0.0008 / b -0.0019 (11% / 27% of round 1), toward neutral rather than more chroma (HSV 0.032 -> 0.021). Sign-off: Firelink green"

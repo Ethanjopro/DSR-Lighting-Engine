@@ -1,18 +1,22 @@
 # Darkroot green: NEEDS USER SIGN-OFF (README section 6: the green shift rests on fromsoftserve alone, so it is
 # halved). Drop this file to remove the move as a unit. Shared rows: Scatter 0 and ToneCorrect 0 also serve m12_01
 # places 1212/1215 (Royal Wood, Battle of Stoicism), which get the same greener haze and grade.
+# ROUND 1 MEASURED (r1_full - r1_main at darkroot_garden): da -0.0070, db +0.0042, sat x1.072, dEV +0.018. The green
+# landed about 3x the README estimate (total da -0.0091 vs band -0.009..-0.002) and turned the cast yellow-green
+# (total db +0.0023 vs <= +0.002), the opposite of the sourced 'blue undertones': sunB -8 took blue out of the haze.
+# Round 2 adjusts (W4): sunB cut dropped, smaller green, brightnessR 0.98. darkroot_basin is not on these rows.
 area = "a12"
 
 [[edit]]
 bank = "LightScatteringBank"
 rows = [0]
 op = "add"
-fields = { sunR = -8, sunG = 10, sunB = -8 }
-why = "darkroot_garden oklab a -0.009..-0.002: greener, less blue-violet haze (vanilla 100/100/130 -> 92/110/122; README sec.5 halved recipe sunR -5..-10, sunG +5..+15, sunB -5..-10, middle)"
+fields = { sunR = -6, sunG = 5 }
+why = "darkroot_garden oklab a -0.009..-0.002, b -0.008..+0.002: greener haze that keeps its blue (vanilla 100/100/130 -> 94/105/130; round-1 sunR -8 / sunG +10 / sunB -8 measured db +0.0042, so sunB stays vanilla and the green is halved to the recipe floor sunG +5). Predicted on top of round-2 main: da about -0.0034, db about 0, sat x1.03, dEV +0.01..+0.02 (the greener haze is slightly brighter)"
 
 [[edit]]
 bank = "ToneCorrectBank"
 rows = [0]
 op = "set"
-fields = { brightnessR = 0.97 }
-why = "darkroot_garden oklab a -0.009..-0.002 (basin -0.008..+0.002): brightnessR 1.00->0.97 (recipe 0.96-0.98, middle; README sec.2 x0.97 ~ a -0.002), luma about -0.009 EV; brightnessB 1.02 held"
+fields = { brightnessR = 0.98 }
+why = "darkroot_garden oklab a -0.009..-0.002: brightnessR 1.00->0.98 (recipe 0.96-0.98, top end; round-1 0.97 with the scatter green overshot to a -0.0091). Round 1 fits R x0.94 display-linear for 0.97, so 0.98 is about R x0.96, luma about -0.006 EV; brightnessB 1.02 held"

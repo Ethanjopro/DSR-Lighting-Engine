@@ -1,14 +1,26 @@
-# G3 round 1, SIGN-OFF GATED (README 6 'sign-off gates'): the Blighttown lift. Drop this file as a unit if the user
+# G3 round 2, SIGN-OFF GATED (README 6 'sign-off gates'): the Blighttown lift. Drop this file as a unit if the user
 # rejects the lift. Levers 1 and 3 of looks/G3.md section 8 only; light-rig levers 4-6 wait for sign-off.
 # Rows: swamp = ToneMap/ToneCorrect 1 'Swamp' (place 1400); bridge = 2 'Shadow Street' (probable, no place name);
-# row 3 'Underground Waterway' also carries place 1400. The live bridge/swamp rows are still unprobed, so contrast and
-# saturation go on rows 1, 2 AND 3 as a hedge (W3 fixer); all three are m14_00 only, so contrast still moves only in
-# Blighttown and only down.
-# Lever 2 (minAdaptedLum on ToneMap 2) is NOT in round 1 (W3 fixer): the bible makes it conditional ('if the bridge
-# stays crushed'), and sweep-scaled, contrast plus minLum x0.9 reach +0.29..+1.15 EV against the bridge's +0.30 p50
-# ceiling and the depths_dragon - blighttown_bridge pair (+-0.30). W4 round 2: add ToneMap 2 (or the probed bridge
-# row) minAdaptedLum x0.95 only if the first capture shows crush falling by less than 2 points with p50 delta below
-# +0.15; swamp: minAdaptedLum x0.95 on ToneMap 1 if its crush falls by less than 1 point.
+# row 3 'Underground Waterway' also carries place 1400. The live bridge/swamp rows are still unprobed (a per-channel
+# fit of the round-1 response could not tell rows 1/2/3 apart), so contrast and saturation stay on rows 1, 2 AND 3 as a
+# hedge; all three are m14_00 only, so contrast still moves only in Blighttown and only down.
+# Round 1 (captures/w4r1, contrast -0.025, saturation x1.025) measured against the averaged re-baseline:
+#   bridge p50 27 -> 33 (+0.47 EV, ceiling +0.30), crush -3.89 (floor -2), sat x1.019, oklab b -0.006;
+#   swamp  ev +0.40 (ceiling +0.30), p10 6 -> 15, p50 +4, crush -2.58 (floor -1), sat x1.011;
+#   pair blighttown_swamp - quelaag +0.40 (+-0.30). Crush did its job; exposure overshot by ~1.6x.
+# Round 2 scales both edits to 0.6 of round 1. Near black the game's output is quantized (linear step ~0.0024, luma
+# levels 0/6/11/15/18...), and the contrast cut adds ~2.6 steps there, so crush falls in proportion to the cut:
+# predicted bridge p50 30 (+0.24, one luma level below the ceiling), crush -2.1..-2.4; swamp ev +0.24..+0.28,
+# crush -1.5..-1.7, p10 +5 (one output step, 6 -> 11), p50 +3; pair swamp - quelaag about +0.23.
+# Round-2 fixer: kept at 0.6 (-0.015), not the cross-check's optional 0.55 (-0.0138). Both p50 models put 0.55 and 0.60
+# on the same level: the dithered per-pixel interpolation (sim3) gives p50 30 (+0.244) for scales 0.50-0.64 and 31
+# (+0.322, FAIL) from 0.65; a version snapped to the game's linear output grid gives 30 for 0.52-0.60 and 31 from 0.62,
+# with the CDF at level 30 only ~50.4% (level 30 holds ~0.35% of pixels), so p50 30 vs 31 is a real coin flip at either
+# scale. The crush model (band.py) gives -2.08 at 0.55 vs -2.27 at 0.60 against the -2.0 floor (repeat 0.03), so 0.55
+# would only spend crush margin. If round 2 lands p50 on 31, restate the ceiling in luma levels (+3/+4) rather than
+# retuning; judge depths_dragon - blighttown_bridge on 2-capture means.
+# Lever 2 (minAdaptedLum) stays out: its round-2 trigger (bridge crush falling by less than 2 points, swamp by less
+# than 1) did not fire, and it would only add exposure on top of a lift that already reaches the p50 ceiling.
 area = "a14"
 
 # Lever 1: lower contrast equally on all channels (swamp keeps its B > R,G split). Lever 3: saturation back.
@@ -16,12 +28,12 @@ area = "a14"
 bank = "ToneCorrectBank"
 rows = [1, 2, 3]
 op = "add"
-fields = { contrastR = -0.025, contrastG = -0.025, contrastB = -0.025 }
-why = "blighttown_bridge crush must fall >= 2 (p50 ev -0.10..+0.30), blighttown_swamp crush must fall >= 1 (ev 0..+0.30): lift the crushed bottom end without brightening the mood (Blighttown is the one G3 view where DSR is the darker one). Row 3 is an unprobed hedge (place 1400, same as row 1)"
+fields = { contrastR = -0.015, contrastG = -0.015, contrastB = -0.015 }
+why = "blighttown_bridge crush must fall >= 2 (p50 ev -0.10..+0.30), blighttown_swamp crush must fall >= 1 (ev 0..+0.30): lift the crushed bottom end without brightening the mood (Blighttown is the one G3 view where DSR is the darker one). Round 2: -0.025 -> -0.015, because round 1 overshot exposure (bridge p50 +0.47, swamp ev +0.40) while crush fell 3.9 / 2.6 points; 0.6 of the round-1 lift keeps both crush floors (predicted -2.1..-2.4 / -1.5..-1.7) with bridge p50 at +0.24. Row 3 is an unprobed hedge (place 1400, same as row 1)"
 
 [[edit]]
 bank = "ToneCorrectBank"
 rows = [1, 2, 3]
 op = "mul"
-fields = { saturation = 1.025 }
-why = "blighttown sat x0.93-1.04: give back the ~1.2% saturation the contrast cut costs (swamp green and shanty purple hold); row 3 hedge as above"
+fields = { saturation = 1.015 }
+why = "blighttown sat x0.93-1.04: give back the saturation the contrast cut costs (swamp green and shanty purple hold). Round 2: x1.025 -> x1.015, scaled with the contrast cut; round 1 netted sat x1.019 bridge / x1.011 swamp, so the full x1.025 over-compensated. Row 3 hedge as above"

@@ -1,14 +1,18 @@
 # G5 / a17 SIGN-OFF: optional experiments (README section 6 sign-off gates). Drop this file to remove them.
 # Crystal Cave highlight recovery: the bible marks it optional and to be tested first (targets crystal_cave notes).
+# Round 2: resized from x0.95 to x0.975 after the round-1 measurement (see the why).
 area = "a17"
 
 [[edit]]
 bank = "ToneMapBank"
 rows = [3]
 op = "mul"
-fields = { grayKeyValue = 0.95 }
+fields = { grayKeyValue = 0.975 }
 why = """optional crystal_cave highlight recovery so the crystal facets read (clip may fall up to 10 points, must not \
-rise; recipe grayKey x0.9-1.0, middle). Predicted -0.06 EV (balcony graykey sweep 0.78 EV/doubling), clip falls \
-~1 point. Readability cap -0.21 EV (limit 1.0). ToneMap 3 serves place 1701 only (not ToneMap 0), so the \
-archives_balcony <-> crystal_cave pair moves by the same -0.06. Scatter 3 sunA is left alone: the mist is a \
-must-not-change and b has only 0.012 of margin to its -0.10 limit."""
+rise; recipe grayKey x0.9-1.0). Round 1 measured x0.95 against the main files (r1_full - r1_main): ev -0.127 \
+(predicted -0.06; gain 1.72 EV per EV of grayKey), clip -4.3 points (predicted -1), sat +0.035 (pushed the view to \
+x1.095, over its 1.08 limit), b unchanged (-0.111, limit -0.10). x0.975 is the intended -0.06 EV at the measured \
+gain: predicted ev -0.06, clip -2.1, sat +0.017. ToneMap 3 is live at crystal_cave only (balcony and elevator did \
+not move in r1_full); pair archives_balcony <-> crystal_cave ~+0.13 of 0.30. No ToneCorrect 3 saturation offset: \
+b sits 0.011 from its limit and the sat rise is de-clipped crystal showing its own blue. Scatter 3 sunA is left \
+alone: the mist is a must-not-change."""

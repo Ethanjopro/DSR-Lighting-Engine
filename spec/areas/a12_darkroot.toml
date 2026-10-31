@@ -1,16 +1,25 @@
-# Darkroot Garden and Basin (m12_00), W3 round 1 main spec (looks/G2.md section 2).
-# Views: darkroot_garden (ev -0.40..-0.15, spread +0.15..+0.60, p90 >= 120), darkroot_basin (ev -0.40..-0.05).
-# Exposure is locked (ToneMap 0 min 0.11 / max 0.13): README 3 and G2 ('change one per capture round') allow ONE
-# lever per round here. Round 1 (W3 fixer) = LightBank 0/10 envDif x0.9 only. It is the lever that also moves the
-# basin cave view (Scatter barely reaches it) and it spares the bright haze that sets the garden's p90 (vanilla 131,
-# floor 120). Round 2 (W4): read p90 first, then add Scatter 0 sunA x0.90-0.92 and stop when the garden reaches
-# -0.15..-0.25 EV; do not chase -0.40. If p90 < 122, move the sunA step into the round with the signed-off
-# ToneCorrect 0 brightnessR. This follows the skeptic's order rather than the bible's 'sunA first' because sunA alone
-# would leave the basin above its -0.05 bound and cut p90 material.
-# SHARED ROWS: a12 row 0 (Light/s_Light/Scatter/ToneCorrect) also serves m12_01 places 1212/1215 (Royal Wood, Battle of
-# Stoicism) and LightBank 10 serves 1212; a16 LightBank 11 shares place 1201 (Valley of Drakes). Those guard views
-# have no baseline yet (targets.json _pending): capture them vanilla and tuned in the W4 session before the first
-# tuned a12 capture (hold +-0.15).
+# Darkroot Garden (m12_00), W4 round 2 main spec (looks/G2.md section 2; round-1 evidence captures/w4r1).
+# View: darkroot_garden (ev -0.40..-0.15, p90 >= 120). Exposure is locked (ToneMap 0 min 0.11 / max 0.13).
+# ROUND 1 MEASURED (LightBank 0/10 envDif x0.90 alone): garden dEV -0.067 (frame mean-lin -0.104, char -0.252), p90
+# 133 -> 127, p10 47 unchanged, spread -0.066, sat x1.000, da -0.0021, db -0.0019; repeat noise frame -0.001 / moved 4.6%.
+# The lock did NOT push the response to the top of the extrapolated range (predicted -0.08..-0.18): it landed below the
+# bottom. A further x0.05 step of envDif alone reaches only ~-0.11, and envDif x0.80 (~-0.145) puts p90 on its 120
+# floor, so round 2 steps envDif on the map row (measured lever, response known) AND adds the planned Scatter 0 sunA
+# cut (the sourced 'less milky' lever). The haze is what sets p10 (the doorway; centroid x2121 y680); the p90 pixels are
+# the bonfire-lit floor (y1530-2000), which only the fill lever reaches.
+# BASIN: darkroot_basin did not respond to ANY a12 row-0/10 edit in round 1 (frame +0.014 vs repeat +0.013; R channel
+# x0.98-1.00 under ToneCorrect 0 brightnessR 0.97, which moved the garden's R x0.89-0.94). The bonfire alcove's
+# collision is not on a12 row 0; most likely a16 rows (ToneMap/ToneCorrect/Fog/Scatter 1 'B0 cave interior', LightBank
+# 11, place 1201; G5's file). The shared-row premise and the basin crush stop condition no longer bind these rows.
+# SHARED ROWS: a12 LightBank 0 / Scatter 0 / ToneCorrect 0 also serve m12_01 places 1212/1215 (Royal Wood, Battle of
+# Stoicism) and LightBank 10 serves 1212. Those guard views have no baseline yet (targets.json _pending): capture them
+# vanilla and tuned in the W4 session BEFORE the first round-2 a12 capture (hold +-0.15). Round-2 BLOCKER (cross-check):
+# Royal Wood and Battle of Stoicism twice each (vanilla, then this build) first; a guard move beyond 0.15 EV stops the
+# sunA step (revert the Scatter 0 edit), not the garden target. They are not in data/bonfires.json yet.
+# LOGGED EXCEPTION to README section 3 (locked exposure: x0.05 steps, one lever per round): round 2 moves envDif
+# (x0.90 -> x0.85, one step) AND sunA (x1.0 -> x0.85), valid only once the guard baselines exist. Score it as one
+# combined step; sunA's share = total minus the envDif part extrapolated from round 1 (x0.90 gave -0.067, so x0.85
+# ~-0.10). If main p90 comes in below 122, do not step envDif again (floor 120).
 # No sun decision is needed here: rows 0/1 (300) and 4 (70) are spec-only under shader gate S1 and stay vanilla,
 # char row 10 is 0 in vanilla. darkroot_garden's 'low' sun (targets: trees row 4 70->15-25) is therefore unmet by the
 # >60-stays-vanilla rule; lowering row 4 needs the user's exception (no water on row 4, trees only).
@@ -18,8 +27,21 @@ area = "a12"
 
 [[edit]]
 bank = "LightBank"
-rows = [0, 10]
+rows = [0]
+op = "mul"
+fields = { envDif_colA = 0.85 }
+why = "darkroot_garden ev -0.40..-0.15: less flat IBL fill on the map row (G2 W1 lever 3, envDif x0.80-0.90). Round 1 x0.90 measured dEV -0.067 and p90 133->127 (floor 120); x0.85 (230 -> 196) extrapolates to about -0.11 alone and p90 ~123. Moves the row-0 users in Royal Wood / Battle of Stoicism (guard views, no baseline); does not reach darkroot_basin (round 1: no response)"
+
+[[edit]]
+bank = "LightBank"
+rows = [10]
 op = "mul"
 fields = { envDif_colA = 0.90 }
-why = "darkroot_garden ev -0.40..-0.15 and spread +0.15..+0.60, darkroot_basin ev -0.40..-0.05: less flat IBL fill (G2 W1 lever 3, envDif x0.80-0.90; gentle end because exposure is locked); predicted -0.08..-0.18 EV (envdif_x2 0.509..1.175 x log2 0.9), near the top under the lock. Char row 10 follows map row 0 so characters do not gain on the scene. Moves darkroot_basin (crush ~+0.4 vs cap +1.5) and row-0/10 users in Royal Wood / Battle of Stoicism"
+why = "darkroot_garden character row (collisions at 1200/1201/1212): held at the round-1 x0.90 (80 -> 72), not stepped with map row 0. Round 1 measured char crop -0.25 against frame -0.10 (mean-lin), so the character already loses more than the scene; a further x0.85 would take it to about -0.41. Round 2 predicts char -0.28..-0.30 against frame dEV -0.16..-0.22, still dimmed relative to the scene, never boosted"
 
+[[edit]]
+bank = "LightScatteringBank"
+rows = [0]
+op = "mul"
+fields = { sunA = 0.85 }
+why = "darkroot_garden ev -0.40..-0.15, less milky haze (G2: sunA x0.75-0.90; band 0.7-1.3): 620 -> 527. Sized from the round-1 haze colour test (full - main: haze carries ~14% of G and ~36% of B mid-frame, colour mapped ^2.2): with the envDif step, main dEV -0.16 (sunA linear) .. -0.22 (sunA inside the ^2.2), p90 122-123, sat x1.05-1.08, da -0.004..-0.005, db -0.000..+0.0035 (the haze being cut is blue, so b rises). Shared with Royal Wood / Battle of Stoicism (places 1212/1215)"

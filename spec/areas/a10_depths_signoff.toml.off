@@ -1,3 +1,4 @@
+# DROPPED after W4 round 1 (no measurable effect in the round-1 captures). Kept for reference; not built.
 # G1 round 1 (W3) sign-off: depths_dragon skylight-shaft experiment. README section 6: any optional experiment
 # needs the user's approval on its first capture. Drop this file (rename to .toml.off) to remove it on its own.
 # Split from the former a10_g1_signoff.toml, content unchanged.

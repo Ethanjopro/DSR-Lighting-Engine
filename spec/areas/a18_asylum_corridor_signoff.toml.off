@@ -1,3 +1,4 @@
+# DROPPED after W4 round 1 (no measurable effect in the round-1 captures). Kept for reference; not built.
 # G5 / a18 SIGN-OFF: optional experiment (README section 6 sign-off gates). Drop this file to remove it on its own.
 # Split from the former a18_kiln_asylum_signoff.toml (W3 fixer), content unchanged. The lockstep declarations for
 # char rows 32/36 live here because only this file edits them.

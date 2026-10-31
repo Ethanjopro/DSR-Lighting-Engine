@@ -4,11 +4,9 @@ area = "a13"
 
 # --- Great Hollow: character de-sheen on character row 42 (36 collisions, places 1320/1321) ----
 # envDif/envSpc are not lockstepped; the s_ copies are mirrored so the edit holds whichever bank the engine reads.
-# W4 PROBE GATE (W3 fixer): row 42 is also listed under place 1321, the Ash Lake place (rows 18/19/39/40 are 1321 only).
-# Probe both m13_02 bonfires (c7/c8 tint) before judging. If the ash_lake bonfire character is on row 42, the two
-# d_char_env targets (great_hollow -0.50..-0.10, ash_lake -0.05..+0.25) conflict on one row: soften row 42 to
-# envDif x0.9 / envSpc x0.8 (and the s_ copy), accept great_hollow's weak end, and add no sun to row 42
-# (great_hollow is a sun-off view). If ash_lake is on row 18, keep this as is.
+# W4 round 1 resolved the probe gate: the same edit moved the great_hollow character by -0.32 / -0.26 (d_char_env
+# -0.31 / -0.24, inside -0.50..-0.10) and the ash_lake character by 0.000 (static pixels). So the ash_lake bonfire
+# character is not on row 42, the two d_char_env targets do not conflict, and row 42 stays as is.
 [[edit]]
 bank = "LightBank"
 rows = [42]
@@ -16,6 +14,11 @@ op = "mul"
 fields = { envDif_colA = 0.875, envSpc_colA = 0.7 }
 why = "great_hollow d_char_env -0.5..-0.1: cut the cool sourceless armour sheen (envDif 400 -> 350, envSpc 500 -> 350; envSpc stays above x0.6)"
 
+# W4 round 1: this sun moved nothing measurable at ash_lake (frame +0.000, character crop -0.004 / -0.000, static
+# character pixels median 0.000). Either the bonfire character is not on row 18, or the zenith ShadowBank 0 sun
+# reaches only its top faces (N.L ~ 0 on vertical faces); the light-mapped sand gets no sun under SUN_A. Raising colA_s
+# would not fix either cause. Kept for the declared 'low' class (passes; tomb_1/2 did not move). A c7/c8 tint probe of
+# rows 18/19/39/40 at ash_lake would settle which row lights the bonfire character.
 [[edit]]
 bank = "LightBank"
 rows = [18]

@@ -1,9 +1,15 @@
-# G1 round 1 (W3) sign-off: Burg/Parish cooling. README section 6: colour resting on unverified single sources needs
-# the user's approval on its first capture. Drop this file (rename to .toml.off) to remove the move on its own;
-# a10_g1.toml validates without it. Split from the former a10_g1_signoff.toml, content unchanged.
-# Without this file a10_g1.toml moves burg/parish/parish_altar b warmer (see its header).
-# Skipped as round 2 (G1): Scatter 10 de-violet, ToneCorrect 10 cooling, Scatter 11 sunA/sunB (needs a firelink
-# capture), envDif 11.
+# G1 sign-off: Burg cooling (Fog 10, plus the ToneCorrect 10 saturation trim that pays for its chroma). README
+# section 6: colour resting on unverified single sources needs the user's approval on its first capture. Drop this
+# file (rename to .toml.off) to remove the move on its own; a10_g1.toml validates without it.
+# Without this file a10_g1.toml moves burg/parish_altar b slightly warmer (round 1 main: burg +0.0006,
+# altar -0.0008 against b -0.008..-0.002).
+# Round 2 (W4 G1): the Parish cooling (ToneCorrect 11) was split out to a10_parish_signoff.toml and then dropped
+# by the round-2 fixer (now a10_parish_signoff.toml.off). Fog 10 unchanged; ToneCorrect 10 saturation trim added.
+# Round 1 measured (r1_full vs r1_main, one capture each, re-baseline repeat b 0.0002): burg b +0.0006 -> -0.0027,
+# altar -0.0008 -> -0.0040, a -0.0013 on both (cyan, not purple); burg sat x1.094 -> x1.212 (FAIL <= 1.10), altar
+# x1.057 -> x1.070; EV within 0.02.
+# Skipped as round 2 (G1): Scatter 10 de-violet, ToneCorrect 10 cooling (the excess chroma sits in teal shade,
+# where a cooling tilt adds chroma), Scatter 11 sunA/sunB, envDif 11.
 
 area = "a10"
 
@@ -12,11 +18,11 @@ bank = "FogBank"
 rows = [10]
 op = "set"
 fields = { colR = 45, colB = 78, degRotW = 51 }
-why = "burg/parish_altar: cooler-blue, thinner Burg fog, never purple (G1/README 12: colR 53->43-48, colB 67->75-80, colG held, degRotW 60->48-54, colA held). Density is kept with the colour: same single unverified source, and thinning a teal-grey fog alone pushes b warmer against the burg b target. Est. -0.01..-0.09 EV. Moves all m10_01 exteriors. Sign-off: Burg cooling"
+why = "burg/parish_altar: cooler-blue, thinner Burg fog, never purple (G1/README 12: colR 53->43-48, colB 67->75-80, colG held, degRotW 60->48-54, colA held). Round 1 measured: b burg -0.0032 / altar -0.0031 vs main (lands burg at -0.0027, altar -0.0040, inside -0.008..-0.002), a -0.0013 (cyan side), EV within 0.02. Side effect: the fog's own HSV chroma doubles (0.21 -> 0.42) and it dominates the shade the fill cut darkened, so burg sat rose x1.108 (left nook wall x1.24, b -0.005): paid back by the ToneCorrect 10 trim below. Moves all m10_01 exteriors. Sign-off: Burg cooling"
 
 [[edit]]
 bank = "ToneCorrectBank"
-rows = [11]
+rows = [10]
 op = "set"
-fields = { brightnessR = 1.03, brightnessB = 1.065, saturation = 0.927 }
-why = "parish: less yellow interior with G held so the shade does not drift purple (G1: brightnessR 1.05->1.02-1.04, brightnessB 1.05->1.05-1.08); saturation 0.90->0.927 (x1.03) pays back the chroma the cooling costs. Est. b -0.001..-0.003. ToneCorrect 11 is m10_01 only (all Burg/Parish interiors). Sign-off: Parish cooling"
+fields = { saturation = 0.77 }
+why = "burg/parish_altar: partial payback of the Fog 10 chroma (round 1 full: burg sat x1.212 vs <= 1.10; altar x1.070). saturation 0.83 -> 0.77 (x0.928, band floor 0.747). Assumes burg grades on ToneCorrect 10, not 11: the round-1 ToneCorrect 11 cooling cut parish's warm walls' sat x0.90-0.92, while burg's warm sunlit right wall stayed x1.005, so burg is not on 11. Assumes mean_sat follows saturation ~1:1 (unmeasured; k 0.8-1.0): est. burg x1.21 -> x1.11..1.13 (with the row-10 d ease), altar -> x0.98..1.00 (floor 0.97); desaturating a slightly yellow frame also lowers b: est. burg b -0.0027 -> -0.0033, altar -0.0040 -> -0.0052. Fully reaching burg <= 1.10 would need the band floor and drop the altar to its 0.97 floor (a re-grade). The burg sat ceiling 1.15 proposal was rejected in round 2 (trim unmeasured, ToneCorrect 10 cooling route untried), so r2 full burg sat is an expected FAIL by design; read the real k from r2 before any target move. Both ToneCorrect 10 views saturated in round 1; ToneCorrect 10 is m10_01 only. Sign-off: Burg cooling"

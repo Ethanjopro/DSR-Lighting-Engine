@@ -1,5 +1,12 @@
 # G4 round 1: Sen's Fortress (m15_00; LightBank rows 0-12, slot 0). Sources: looks/G4.md, looks/README.md,
 # looks/targets.json (sens, sens_bridge). Drafted before measurement; W4 captures and iterates.
+# Round 2 (W4, from captures/w4r1): row 10 char cuts eased (sens_bridge char -0.49 vs -0.35..+0.10) and ToneCorrect 0
+# saturation added (sens sat x1.123 vs 0.98..1.10). Everything else is as measured in round 1.
+#
+# Row inference (live_rows collision counts pair up): Light 10 (23 coll + 3 connect) <-> ToneCorrect 0 (25 + 4) /
+# Fog 0 / Shadow 0, and Light 11+12 (42) <-> ToneCorrect 1 (41) / Fog 1 (40) / Shadow 1 (38). Both bonfire views read
+# as the outdoor group: the sens character dropped red-first like the bridge one (row 10's warm 255/235/215 fill),
+# and the Fog 1 sign-off move measured zero at sens. Unconfirmed by a probe.
 #
 # Runtime sharing (per-map MSB census, 2026-10-30): no m15_01 collision selects ToneMap 0, ToneCorrect 0 or
 # Shadow 0, so those rows only reach Sen's at runtime. LightBank 0 is really shared: 12 Anor Londo objects
@@ -63,10 +70,18 @@ why = "sens: map row 0 envDif 120 -> 110 (gentle end of 100-110, same EV-floor r
 [[edit]]
 bank = "LightBank"
 slot = 0
-rows = [10, 11]
+rows = [11]
 op = "mul"
 fields = { colA_u = 0.8, colA_d = 0.8 }
-why = "sens/sens_bridge char de-glow (fromsoftserve dark lantern-dependent interior; mod 711 bridge glow): char rows x0.8, middle of 0.75-0.85. W4 watch: with the sun 50 -> 33 (0.435 -> 0.175) the re-baseline char crop also drops; ease row 10 to x0.85 if sens_bridge's char crop lands below -0.30 (target -0.35..+0.10)"
+why = "sens indoor char de-glow (fromsoftserve dark lantern-dependent interior): indoor char row 11 x0.8, middle of 0.75-0.85. No round-1 capture sees row 11 (both bonfire views read as the outdoor row 10), so it is unchanged in round 2"
+
+[[edit]]
+bank = "LightBank"
+slot = 0
+rows = [10]
+op = "set"
+fields = { colA_u = 24, colA_d = 14 }
+why = "sens_bridge (and sens) outdoor char row 10, eased in round 2: 25/15 -> 24/14 (x0.96/x0.93; round 1 was x0.8 = 20/12). Round 1 measured sens_bridge char -0.49 (repeat -0.001) vs -0.35..+0.10: about -0.15 of it is the sun 50 -> 33 (Phase-0 vs re-baseline char -0.26 is the vanilla sun's share), -0.03 the row-0 background, ~-0.3 the row-10 fill+env cuts. This keeps ~25% of those cuts in log terms; with the envDif/envSpc ease below, predicted char -0.18..-0.26"
 
 [[edit]]
 bank = "LightBank"
@@ -81,8 +96,17 @@ bank = "LightBank"
 slot = 0
 rows = [10]
 op = "set"
-fields = { envDif_colA = 110, envSpc_colA = 110 }
-why = "sens (105-115 / 105-120) and sens_bridge (100-115): cut the sourceless sheen on outdoor characters; the sun adds the modelling back"
+fields = { envDif_colA = 125, envSpc_colA = 125 }
+why = "sens_bridge/sens outdoor char sheen, eased in round 2: 130 -> 125 (x0.96; round 1 was 110 = x0.85, which with the colA x0.8 cut overshot the bridge char crop to -0.49). The main de-glow on row 10 is now the sun 50 -> 33 the re-baseline carries; see the colA edit for the sizing"
+
+# --- Grade: pay back part of the saturation the fill cut adds ---------------------------------------------
+[[edit]]
+bank = "ToneCorrectBank"
+slot = "both"
+rows = [0]
+op = "set"
+fields = { saturation = 0.94 }
+why = "sens sat x1.123 (repeat x0.999) vs 0.98..1.10: cutting the row-0 fill removes grey fill (x1.035 of it is only the removed re-baseline sun leak on the corridor wall: Phase-0 sat 0.3824 vs re-baseline 0.3694). Saturation 1.0 -> 0.94 (band 0.9-1.15) partly compensates: simulated on the round-1 frames sens x1.087, sens_bridge x1.025 -> x0.986 (it shares ToneCorrect 0 and also rose, +0.015 abs), oklab moves <= 0.0011. Row inferred from the collision pairing (header); if round 2 shows sens sat unmoved, the view is on ToneCorrect 1 instead. Slot both: slot 1 mirrors ToneCorrect 0 in vanilla, and no m15_01 collision selects it"
 
 [[edit]]
 bank = "ShadowBank"
