@@ -104,6 +104,16 @@ def to_image(rgb: np.ndarray, ldr: bool) -> np.ndarray:
     return (np.clip(v, 0, 1) * 255 + 0.5).astype(np.uint8)
 
 
+def shot_image(path: pathlib.Path, paper_white: float = 200.0) -> np.ndarray:
+    """A back-buffer dump as the 8-bit SDR image it stands for. An scRGB dump (native HDR) is read as 1 = 80 nits, with
+    paper white at 255 and anything above it clipped, so its shadows and midtones compare directly with an SDR dump."""
+    rgb, ldr, desc = decode(path)
+    if desc != "RGBA16F":
+        return to_image(rgb, ldr)
+    v = np.nan_to_num(rgb, nan=0.0, posinf=0.0, neginf=0.0) * 80.0 / paper_white
+    return (np.clip(np.maximum(v, 0.0) ** (1.0 / 2.2), 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("input")

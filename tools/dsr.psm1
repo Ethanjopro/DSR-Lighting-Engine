@@ -124,11 +124,14 @@ function Get-DsrState {
         $sx = $bmp.Width / 960.0; $sy = $bmp.Height / 540.0
         $px = { param($x, $y) [DsrInput]::PixelAt($bmp, [int]($x * $sx), [int]($y * $sy)) }
         $hp = & $px 250 61; $st = & $px 230 76
+        # The capture sees native HDR at paper white 200 about 0.8 times as bright as the SDR image under Auto HDR.
         if ((Test-Rgb $hp 189 90 86) -and (Test-Rgb $st 149 209 149)) { return "InGame" }
+        if ((Test-Rgb $hp 151 65 60) -and (Test-Rgb $st 116 170 116)) { return "InGame" }
         $dlg = & $px 480 240
-        if ($dlg.R -ge 80 -and $dlg.R -le 120 -and [math]::Abs($dlg.R - $dlg.B) -le 8) { return "OfflineDialog" }
+        if ($dlg.R -ge 64 -and $dlg.R -le 120 -and [math]::Abs($dlg.R - $dlg.B) -le 8) { return "OfflineDialog" }
         $row0 = & $px 480 395
         if ($row0.R -ge 170 -and $row0.G -ge 115 -and $row0.G -le 175 -and $row0.B -le 140) { return "MainMenu" }
+        if ($row0.R -ge 136 -and $row0.R -lt 170 -and $row0.G -ge 92 -and $row0.G -le 140 -and $row0.B -le 112) { return "MainMenu" }
         if ([DsrInput]::MeanLuma($bmp) -lt 30) { return "Dark" }
         return "Other"
     } finally { $bmp.Dispose() }

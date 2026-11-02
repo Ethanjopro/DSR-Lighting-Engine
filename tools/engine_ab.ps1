@@ -12,7 +12,9 @@ param(
     [switch]$VanillaOff,    # the "off" variant gets vanilla DrawParam too: the game as a player knows it
     [switch]$TestToggle,    # after the last bonfire, press the comparison key and check the log
     [int[]]$Turns = @(),    # also capture a view after each of these camera turns, in mouse travel; saved as <slug>_t1, _t2...
-    [int]$SettleSec = 5     # let AO, TAA and exposure settle after a settings change
+    [int]$SettleSec = 5,    # let AO, TAA and exposure settle after a settings change
+    [switch]$Hdr,           # start the game with native HDR; the shots are then scRGB, so read them with dds2png.shot_image
+    [switch]$ShowUi         # keep the HUD in the shots
 )
 $root = Split-Path -Parent $PSScriptRoot
 $game = "C:\Program Files (x86)\Steam\steamapps\common\DARK SOULS REMASTERED"
@@ -21,11 +23,12 @@ Import-Module "$root\tools\gadget.psm1" -Force
 
 function Set-Variant([string]$Name) {
     $ini = Join-Path $game "dsrle\dsrle.ini"
-    if ($Name -eq "off") { $text = "[engine]`nenabled = 0`nhide_ui = 1`n" }
-    elseif ($Name -eq "on") { $text = (Get-Content -Raw "$root\engine\data\dsrle.ini") + "`n[engine]`nhide_ui = 1`n" }
+    $hide = if ($ShowUi) { "0" } else { "1" }
+    if ($Name -eq "off") { $text = "[engine]`nenabled = 0`nhide_ui = $hide`n" }
+    elseif ($Name -eq "on") { $text = (Get-Content -Raw "$root\engine\data\dsrle.ini") + "`n[engine]`nhide_ui = $hide`n" }
     else {
         # A variant is the base settings plus its own overrides; a later value for a key wins.
-        $text = (Get-Content -Raw "$root\engine\data\dsrle.ini") + "`n" + (Get-Content -Raw "$root\engine\variants\$Name.ini") + "`n[engine]`nhide_ui = 1`n"
+        $text = (Get-Content -Raw "$root\engine\data\dsrle.ini") + "`n" + (Get-Content -Raw "$root\engine\variants\$Name.ini") + "`n[engine]`nhide_ui = $hide`n"
     }
     [IO.File]::WriteAllText($ini, $text)
 }
@@ -71,7 +74,7 @@ if (-not $bonfires) { throw "no bonfires selected" }
 
 try {
     & "$root\tools\engine_install.ps1" -Remove -KeepAs "$Run\_prev" | Out-Null
-    if ($DrawParam) { & "$root\tools\engine_install.ps1" -DrawParam $DrawParam } else { & "$root\tools\engine_install.ps1" }
+    if ($DrawParam) { & "$root\tools\engine_install.ps1" -DrawParam $DrawParam -Hdr:$Hdr } else { & "$root\tools\engine_install.ps1" -Hdr:$Hdr }
     Start-Dsr | Out-Null
     Enter-DsrGame
     Start-Gadget | Out-Null

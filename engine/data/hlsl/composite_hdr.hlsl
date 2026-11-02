@@ -15,6 +15,8 @@ cbuffer HdrConstants : register(b4) {
     float g_knee;     // where the display limit begins, always at or above 1
     float g_scale;    // used by hdr_final.hlsl
     float g_has_ext;  // used by hdr_final.hlsl
+    float g_warm_hue; // how much of the SDR hue warm highlights keep
+    float3 g_pad;
 };
 
 struct HdrOutput {
@@ -41,6 +43,22 @@ float3 display_limit(float3 e) {
     return e <= g_knee ? e : above;
 }
 
+// Red gets headroom while green stays on the curve, which takes flames from orange toward red. Warm pixels keep part of
+// their SDR hue; blue ones have no such problem and keep the extended one.
+float3 keep_warm_hue(float3 e, float3 s) {
+    const float smin = min(s.r, min(s.g, s.b)), smax = max(s.r, max(s.g, s.b));
+    const float emin = min(e.r, min(e.g, e.b)), emax = max(e.r, max(e.g, e.b));
+    const float w = g_warm_hue * saturate(min(s.r - s.b, e.r - e.b) / 0.1f);
+    return lerp(e, emin + (s - smin) / max(smax - smin, 1e-4f) * (emax - emin), w);
+}
+
+// film_contrast's slope where the curve reaches the pivot. Above it the extension replaces that part of the S, so the same
+// slope carries on and no kink shows where the highlights begin.
+float film_slope_at_pivot() {
+    const float v = pow(saturate(curve(float3(PIVOT, PIVOT, PIVOT)).x / curve(ADAPT.yyy).x), 1.0f / 2.2f);
+    return v > FILM_PIVOT ? g_film.y * pow(max(1.0f - v, 1e-4f) / (1.0f - FILM_PIVOT), g_film.y - 1.0f) : g_film.x;
+}
+
 HdrOutput hdr_main(float4 pos : SV_Position, float4 uv : TEXCOORD1) {
     HdrOutput o;
     o.sdr = main(pos, uv);
@@ -52,18 +70,13 @@ HdrOutput hdr_main(float4 pos : SV_Position, float4 uv : TEXCOORD1) {
 
     if ((uint)OPERATOR == 0) {
         // The same exposed scene value main() starts from.
-        float3 scene = max(t_scene.Sample(s_scene, uv.xy).rgb, 1e-6f);
-        float4 bloom = t_bloom.Sample(s_bloom, uv.xy);
-        bloom.rgb = max(bloom.rgb, 1e-6f);
-        float bloom_mul = lerp(SCALE.x, FAR_BLOOM, saturate(bloom.a));
-        float3 col = scene + bloom_mul * bloom.rgb + SCALE.y * t_glare.Sample(s_glare, uv.xy).rgb;
-        float exposure = ADAPT.x / (clamp(t_adapted.Sample(s_adapted, float2(0.5f, 0.5f)), SCALE.z, SCALE.w) + 1e-4f);
-        float3 x = col * exposure;
+        float adapted;
+        const float3 x = scene_colour(uv) * scene_exposure(adapted);
 
         // The grade lives in gamma space, so the extra goes through it there, without its offset: main() applied that.
-        float3 extra = pow(max(extended_rolloff(x), 0.0f), 1.0f / 2.2f) - pow(saturate(tonemap_rolloff(x)), 1.0f / 2.2f);
+        const float3 extra = film_slope_at_pivot() * (pow(max(extended_rolloff(x), 0.0f), 1.0f / 2.2f) - pow(saturate(tonemap_rolloff(x)), 1.0f / 2.2f));
         graded += float3(dot(extra, GRADE_R.rgb), dot(extra, GRADE_G.rgb), dot(extra, GRADE_B.rgb));
     }
-    o.ext = float4(display_limit(pow(max(graded, 0.0f), 2.2f)), 1.0f);
+    o.ext = float4(keep_warm_hue(display_limit(pow(max(graded, 0.0f), 2.2f)), pow(saturate(o.sdr.rgb), 2.2f)), 1.0f);
     return o;
 }

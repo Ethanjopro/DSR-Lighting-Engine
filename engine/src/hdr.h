@@ -21,6 +21,10 @@ HRESULT hdr_create_swapchain(IDXGIFactory* factory, IUnknown* device, DXGI_SWAP_
 HRESULT hdr_resize_buffers(IDXGISwapChain* swapchain, UINT count, UINT width, UINT height, DXGI_FORMAT format, UINT flags, HdrResizeBuffersFn resize);
 // Once per Present, before it: the flags to present with.
 UINT hdr_present_flags(IDXGISwapChain* swapchain, UINT sync, UINT flags);
+// Flip model unbinds the back buffer at Present, and the last blit runs on the immediate context with whatever is bound
+// there. Returns what to bind again, with a reference, or null. The second call takes it whether or not Present worked.
+ID3D11RenderTargetView* hdr_before_present(IDXGISwapChain* swapchain, ID3D11DeviceContext* immediate);
+void hdr_after_present(ID3D11DeviceContext* immediate, ID3D11RenderTargetView* target);
 
 // The game asks for 8-bit views of its back buffer, which fail on a float one. Returns the desc to create the view with.
 const D3D11_RENDER_TARGET_VIEW_DESC* hdr_fix_view_desc(ID3D11Resource* res, const D3D11_RENDER_TARGET_VIEW_DESC* desc, D3D11_RENDER_TARGET_VIEW_DESC* storage);

@@ -5,17 +5,20 @@
 //                        HDR swap chain at paper white, which is a fair A/B against SDR
 //   hdr.paper_white = 200  nits of SDR white, and so of the UI and everything below the composite's pivot. Live
 //   hdr.peak_nits = 0      nits the highlights roll off toward; 0 = what the display reports. Live
+//   hdr.warm_hue = 0.5     how much of the SDR hue fire keeps above paper white; 0 lets it go redder, 1 keeps all of it. Live
 //
 // What moving from the game's blit-model chain to flip model changes, and where each is dealt with:
 // - The back buffer is float, so the game's 8-bit view descs would fail: hdr_fix_view_desc.
 // - Its contents are undefined after Present. The last blit covers it every frame, so nothing depends on them. A Present
 //   with no blit before it would show an old frame, and hdr_present_flags logs that if it ever happens.
-// - It is unbound from the immediate context at Present. The game rebinds it in every list it records.
+// - It is unbound from the immediate context at Present. The last blit runs there and relies on the binding, so
+//   hdr_after_present puts it back.
 // - No MSAA, which leaves the game's own chain in place. Flags GDI cannot honour on float are dropped.
 // - Windows Auto HDR only acts on SDR swap chains, so this replaces its guess rather than adding to it.
 #include "hdr.h"
 #include "common.h"
 #include "config.h"
+#include "engine.h"
 #include "hlsl.h"
 #include <dxgi1_6.h>
 #include <algorithm>
@@ -41,19 +44,25 @@ struct Constants {
     float knee;
     float scale;
     float has_ext;
+    float warm_hue;
+    float pad[3];
 };
 
 ID3D11Device* g_device;
 std::atomic<bool> g_active{false};
 IDXGISwapChain* g_swapchain;  // compared only: the vtable hooks see every swap chain in the process
 HWND g_window;
-float g_display_peak;
+std::atomic<float> g_display_peak{kFallbackPeakNits};
+std::atomic<bool> g_display_is_hdr{true};
+IDXGIFactory1* g_display_factory;
+HMONITOR g_display_monitor;
+int g_display_poll;
 std::atomic<bool> g_blit_drawn{false};
 std::atomic<bool> g_first_present_logged{false};
 bool g_blit_ever_drawn;
 int g_blitless_logged;
 
-std::mutex g_lock;  // both draws record on the main thread in every frame traced so far; this keeps that from mattering
+std::mutex g_lock;  // the composite's list can record on a worker while the blit runs on the immediate context
 ID3D11Buffer* g_cb;
 ID3D11BlendState* g_opaque;
 ID3D11SamplerState* g_lut_sampler;
@@ -66,7 +75,7 @@ ID3D11ShaderResourceView* g_sdr_srv;
 ID3D11Resource* g_composite_target;  // compared only
 UINT g_width, g_height;
 DXGI_FORMAT g_target_format;
-bool g_ext_ready;  // the composite drew since the last blit
+int g_ext_pending;  // composites drawn and not yet shown: a list can record before the last frame's blit runs
 
 template <class T>
 void drop(T*& p) {
@@ -76,7 +85,7 @@ void drop(T*& p) {
 
 // A fresh factory rather than the game's: this asks about the display as it is now. Loaded by name because the DLL
 // does not link dxgi.lib.
-bool find_output(HWND window, DXGI_OUTPUT_DESC1& out) {
+bool find_output(HWND window, DXGI_OUTPUT_DESC1& out, IDXGIFactory1** keep = nullptr) {
     wchar_t path[MAX_PATH];
     GetSystemDirectoryW(path, MAX_PATH);
     wcscat_s(path, L"\\dxgi.dll");
@@ -105,7 +114,11 @@ bool find_output(HWND window, DXGI_OUTPUT_DESC1& out) {
         }
         adapter->Release();
     }
-    factory->Release();
+    if (keep) {
+        *keep = factory;
+    } else {
+        factory->Release();
+    }
     return found;
 }
 
@@ -133,7 +146,7 @@ bool wants_hdr(IUnknown* device, const DXGI_SWAP_CHAIN_DESC& desc) {
         logf("hdr: hdr_final.hlsl did not compile; staying SDR");
         return false;
     }
-    g_display_peak = output.MaxLuminance > 0.0f ? output.MaxLuminance : kFallbackPeakNits;
+    g_display_peak.store(output.MaxLuminance > 0.0f ? output.MaxLuminance : kFallbackPeakNits, std::memory_order_relaxed);
     logf("hdr: display reports %.0f nits peak, %.0f full frame", output.MaxLuminance, output.MaxFullFrameLuminance);
     return true;
 }
@@ -249,14 +262,31 @@ bool match_targets(ID3D11RenderTargetView* rtv) {
     return true;
 }
 
+// The player can turn Windows HDR off or move the window to another monitor while the game runs. An SDR desktop clips
+// scRGB at 1, so until a restart the image is mapped to fit that instead of blowing out.
+void watch_display() {
+    if (++g_display_poll % 60) return;
+    const HMONITOR monitor = MonitorFromWindow(g_window, MONITOR_DEFAULTTOPRIMARY);
+    if (g_display_factory && g_display_factory->IsCurrent() && monitor == g_display_monitor) return;
+    drop(g_display_factory);
+    g_display_monitor = monitor;
+    DXGI_OUTPUT_DESC1 d;
+    if (!find_output(g_window, d, &g_display_factory)) return;
+    const bool hdr = d.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+    if (d.MaxLuminance > 0.0f) g_display_peak.store(d.MaxLuminance, std::memory_order_relaxed);
+    if (g_display_is_hdr.exchange(hdr, std::memory_order_relaxed) != hdr) logf("hdr: display is %s now", hdr ? "HDR" : "SDR");
+}
+
 bool upload_constants(ID3D11DeviceContext* ctx, bool has_ext) {
-    const float paper = std::max(cfg_float("hdr.paper_white", 200.0f), 1.0f);
+    const bool hdr = g_display_is_hdr.load(std::memory_order_relaxed);
+    const float paper = hdr ? std::max(cfg_float("hdr.paper_white", 200.0f), 1.0f) : kScRgbNits;
     const float set_peak = cfg_float("hdr.peak_nits", 0.0f);
     Constants c{};
-    c.peak = std::max((set_peak > 0.0f ? set_peak : g_display_peak) / paper, 1.0f);
+    c.peak = hdr ? std::max((set_peak > 0.0f ? set_peak : g_display_peak.load(std::memory_order_relaxed)) / paper, 1.0f) : 1.0f;
     c.knee = std::max(c.peak * kLimitKnee, 1.0f);
     c.scale = paper / kScRgbNits;
     c.has_ext = has_ext ? 1.0f : 0.0f;
+    c.warm_hue = std::clamp(cfg_float("hdr.warm_hue", 0.5f), 0.0f, 1.0f);
     D3D11_MAPPED_SUBRESOURCE mapped;
     if (FAILED(ctx->Map(g_cb, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) return false;
     memcpy(mapped.pData, &c, sizeof(c));
@@ -331,11 +361,6 @@ HRESULT hdr_resize_buffers(IDXGISwapChain* swapchain, UINT count, UINT width, UI
     if (count == 1) count = 2;
     flags &= ~kFlipForbidsFlags;
     HRESULT hr = resize(swapchain, count, width, height, kFormat, flags);
-    if (hr == DXGI_ERROR_INVALID_CALL) {
-        logf("hdr: ResizeBuffers refused, trying again with the immediate context cleared");
-        flush_immediate();
-        hr = resize(swapchain, count, width, height, kFormat, flags);
-    }
     if (FAILED(hr)) {
         logf("hdr: ResizeBuffers failed %08lx", static_cast<unsigned long>(hr));
     } else if (!apply_color_space(swapchain)) {
@@ -347,6 +372,7 @@ HRESULT hdr_resize_buffers(IDXGISwapChain* swapchain, UINT count, UINT width, UI
 UINT hdr_present_flags(IDXGISwapChain* swapchain, UINT sync, UINT flags) {
     if (!g_active.load(std::memory_order_relaxed) || swapchain != g_swapchain) return flags;
     if (!g_first_present_logged.exchange(true, std::memory_order_relaxed)) logf("hdr: first Present sync=%u flags=%x", sync, flags);
+    watch_display();
     if (!(flags & DXGI_PRESENT_TEST)) {
         const bool drawn = g_blit_drawn.exchange(false, std::memory_order_relaxed);
         if (drawn) {
@@ -359,6 +385,19 @@ UINT hdr_present_flags(IDXGISwapChain* swapchain, UINT sync, UINT flags) {
     return flags & ~static_cast<UINT>(DXGI_PRESENT_DO_NOT_SEQUENCE);
 }
 
+ID3D11RenderTargetView* hdr_before_present(IDXGISwapChain* swapchain, ID3D11DeviceContext* immediate) {
+    if (!g_active.load(std::memory_order_relaxed) || swapchain != g_swapchain) return nullptr;
+    ID3D11RenderTargetView* target = nullptr;
+    immediate->OMGetRenderTargets(1, &target, nullptr);
+    return target;
+}
+
+void hdr_after_present(ID3D11DeviceContext* immediate, ID3D11RenderTargetView* target) {
+    if (!target) return;
+    immediate->OMSetRenderTargets(1, &target, nullptr);
+    target->Release();
+}
+
 const D3D11_RENDER_TARGET_VIEW_DESC* hdr_fix_view_desc(ID3D11Resource* res, const D3D11_RENDER_TARGET_VIEW_DESC* desc, D3D11_RENDER_TARGET_VIEW_DESC* storage) {
     return fix_view_desc(res, desc, storage);
 }
@@ -369,8 +408,9 @@ const D3D11_SHADER_RESOURCE_VIEW_DESC* hdr_fix_view_desc(ID3D11Resource* res, co
 
 bool hdr_draw_composite(ID3D11DeviceContext* ctx, UINT count, UINT start) {
     if (!g_active.load(std::memory_order_relaxed)) return false;
-    // With the game's own composite there is nothing to extend, and the blit shows its image at paper white.
-    if (!cfg_bool("hdr.enabled", true) || !cfg_bool("engine.enabled", true) || !cfg_bool("composite.enabled", true)) return false;
+    // With the game's own composite there is nothing to extend, and the blit shows its image at paper white. That is also
+    // what the comparison key shows.
+    if (!cfg_bool("hdr.enabled", true) || !engine_replace_ps(Role::Composite)) return false;
     ID3D11PixelShader* ps = hlsl_ps("composite_hdr.hlsl", "hdr_main");
     if (!ps) return false;
 
@@ -403,7 +443,7 @@ bool hdr_draw_composite(ID3D11DeviceContext* ctx, UINT count, UINT start) {
         drop(game_ps);
         drop(game_cb);
         drop(game_blend);
-        g_ext_ready = true;
+        g_ext_pending = std::min(g_ext_pending + 1, 2);  // a list that never ran must not outlast a blit or two
         drawn = true;
     }
     drop(rtv[0]);
@@ -420,8 +460,8 @@ bool hdr_draw_final(ID3D11DeviceContext* ctx, UINT count, UINT start) {
     std::lock_guard<std::mutex> lock(g_lock);
     if (!create_shared()) return false;
     // The extended image is only good for the composite target it was drawn with, and for the frame it was drawn in.
-    bool has_ext = g_ext_ready;
-    g_ext_ready = false;
+    bool has_ext = g_ext_pending > 0;
+    if (has_ext) g_ext_pending--;
     ID3D11ShaderResourceView* input = nullptr;
     ctx->PSGetShaderResources(0, 1, &input);
     if (input) {

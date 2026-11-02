@@ -4,6 +4,7 @@
 #include "common.h"
 #include "config.h"
 #include "gtao.h"
+#include "hdr.h"
 #include "hlsl.h"
 #include "pack.h"
 #include "perf.h"
@@ -161,6 +162,7 @@ void engine_init(ID3D11Device* device) {
     gtao_init(device);
     bloom_init(device);
     volumetrics_init(device);
+    hdr_init(device);
     ssgi_init(device);
     reflect_init(device);
     reflect_read_settings(g_pack);

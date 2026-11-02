@@ -1,6 +1,7 @@
 #include "shaderdb.h"
 #include "common.h"
 #include "config.h"
+#include "hdr.h"
 #include <cstdio>
 #include <cstring>
 #include <shared_mutex>
@@ -71,6 +72,7 @@ void shaderdb_register(void* shader_object, const void* bytecode, size_t size, c
         snprintf(buf, sizeof(buf), "?%016llx%016llx", static_cast<unsigned long long>(info.hash_lo),
                  static_cast<unsigned long long>(info.hash_hi));
         info.name = buf;
+        if (hdr_is_final_blit(info.hash_lo, info.hash_hi)) info.role = Role::FinalBlit;
         // Shaders outside the game's archives live in the exe. Keep a copy for inspection during development.
         if (cfg_bool("dev.dump_unknown", false)) {
             CreateDirectoryW((data_dir() + L"unknown").c_str(), nullptr);

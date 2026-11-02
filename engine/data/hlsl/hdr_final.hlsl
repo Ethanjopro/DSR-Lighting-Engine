@@ -17,6 +17,8 @@ cbuffer HdrConstants : register(b4) {
     float g_knee;     // used by composite_hdr.hlsl
     float g_scale;    // paper white / 80
     float g_has_ext;  // 0 when no composite ran for this image: menus and loading screens are all UI
+    float g_warm_hue; // used by composite_hdr.hlsl
+    float3 g_pad;
 };
 
 // Unchanged pixels compare equal exactly: same format, same filter, same coordinates. This only absorbs float noise.

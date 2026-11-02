@@ -2,6 +2,7 @@
 #include "bloom.h"
 #include "common.h"
 #include "engine.h"
+#include "hdr.h"
 #include "lightreach.h"
 #include "reflect.h"
 #include "shaderdb.h"
@@ -123,7 +124,9 @@ public:
         }
         const bool bloom = ps_role_ == Role::Composite && engine_replace_ps(Role::Composite);
         if (bloom) bloom_run(real_);
-        real_->Draw(count, start);
+        const bool drawn = (ps_role_ == Role::Composite && hdr_draw_composite(real_, count, start)) ||
+                           (ps_role_ == Role::FinalBlit && hdr_draw_final(real_, count, start));
+        if (!drawn) real_->Draw(count, start);
         if (bloom) bloom_unbind(real_);
     }
     void STDMETHODCALLTYPE DrawIndexed(UINT count, UINT start, INT base) override {

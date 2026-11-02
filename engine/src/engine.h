@@ -18,6 +18,7 @@ enum class Role : uint8_t {
     MenuUi,
     ForwardLit,   // forward pixel shader with a cascaded sun lookup: its constants carry the sun direction
     NoCast,       // depth prepass draws that must not cast sun shadows: the sky dome, debug primitives
+    FinalBlit,    // the game's last draw, composite target to back buffer through the brightness table
     DepthCopy,    // the half-resolution depth copy ahead of the soft effects: only the main post list draws it
 };
 

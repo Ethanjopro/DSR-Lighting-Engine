@@ -83,25 +83,33 @@ float ign(float2 px) {
     return frac(52.9829189f * frac(dot(px, float2(0.06711056f, 0.00583715f))));
 }
 
-float4 main(float4 pos : SV_Position, float4 uv : TEXCOORD1) : SV_Target0 {
+// The scene before exposure, and the exposure. composite_hdr.hlsl starts from the same value.
+float3 scene_colour(float4 uv) {
     float3 scene = max(t_scene.Sample(s_scene, uv.xy).rgb, 1e-6f);
     float4 bloom = t_bloom.Sample(s_bloom, uv.xy);
     bloom.rgb = max(bloom.rgb, 1e-6f);
     float bloom_mul = lerp(SCALE.x, FAR_BLOOM, saturate(bloom.a));
     float3 col = scene + bloom_mul * bloom.rgb + SCALE.y * t_glare.Sample(s_glare, uv.xy).rgb;
     const float4 wide = t_wide.Sample(s_bloom, uv.xy);
-    col = lerp(col, wide.rgb, wide.a);
+    return lerp(col, wide.rgb, wide.a);
+}
 
-    const float adapted = t_adapted.Sample(s_adapted, float2(0.5f, 0.5f));
+float scene_exposure(out float adapted) {
+    adapted = t_adapted.Sample(s_adapted, float2(0.5f, 0.5f));
     float exposure = g_film.z * ADAPT.x / (clamp(adapted, SCALE.z, SCALE.w) + 1e-4f);
     // The game stops raising exposure at its luminance floor, so a very dark scene stays underexposed however far under it
     // goes. Many sunlit scenes sit just under the floor as well, and they keep the game's exposure.
-    exposure *= lerp(1.0f, g_black.y, saturate((log2(SCALE.z / max(adapted, 1e-5f)) - DARK_FROM) / DARK_SPAN));
+    return exposure * lerp(1.0f, g_black.y, saturate((log2(SCALE.z / max(adapted, 1e-5f)) - DARK_FROM) / DARK_SPAN));
+}
+
+float4 main(float4 pos : SV_Position, float4 uv : TEXCOORD1) : SV_Target0 {
+    float adapted;
+    const float exposure = scene_exposure(adapted);
     // Test readouts, each as a flat colour: 1 log2 of exposure, adapted luminance and key; 2 the grade's offsets; 3 its gain on grey.
     if (g_film.w == 1.0f) return float4((log2(float3(exposure, max(adapted, 1e-5f), ADAPT.x)) + 12.0f) / 16.0f, 1.0f);
     if (g_film.w == 2.0f) return float4(0.5f + 2.0f * float3(GRADE_R.w, GRADE_G.w, GRADE_B.w), 1.0f);
     if (g_film.w == 3.0f) return float4(0.5f * float3(dot(GRADE_R.xyz, 1.0f), dot(GRADE_G.xyz, 1.0f), dot(GRADE_B.xyz, 1.0f)), 1.0f);
-    float3 x = col * exposure;
+    float3 x = scene_colour(uv) * exposure;
     float3 tm;
     if ((uint)OPERATOR == 0) {
         tm = tonemap_rolloff(x);
