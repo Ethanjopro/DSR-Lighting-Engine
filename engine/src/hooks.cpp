@@ -123,6 +123,13 @@ HRESULT STDMETHODCALLTYPE h_Present(IDXGISwapChain* self, UINT sync, UINT flags)
     ID3D11RenderTargetView* hdr_target = hdr_before_present(self, g_immediate_real);
     HRESULT hr = o_Present(self, sync, hdr_present_flags(self, sync, flags));
     hdr_after_present(g_immediate_real, hdr_target);
+    if (FAILED(hr)) {
+        static int s_failed_logged;
+        if (s_failed_logged < 8) {
+            s_failed_logged++;
+            logf("Present failed %08lx", static_cast<unsigned long>(hr));
+        }
+    }
     perf_after_present(g_immediate_real);
     trace_after_present(g_device);
     engine_on_present(g_immediate_real);

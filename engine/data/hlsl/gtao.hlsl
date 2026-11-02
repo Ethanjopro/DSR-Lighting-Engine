@@ -1,6 +1,7 @@
 // Ground-truth ambient occlusion: horizon search per slice with a cosine-weighted arc integral
 // (after Jimenez et al., "Practical Real-Time Strategies for Accurate Indirect Occlusion", 2016).
-// Output goes into the game's AO texture; the forward shaders read its red channel.
+// Output goes into the game's AO texture: r occlusion, g sun contact shadow, ba how far the open part of the hemisphere leans
+// from the surface normal, in view x and y, * 127/255 + 128/255. The forward shaders turn that last part into a bent normal.
 
 cbuffer Constants : register(b0) {
     float2 g_size, g_inv_size;
@@ -135,7 +136,7 @@ void ao_main(uint3 id : SV_DispatchThreadID) {
     int2 px = int2(id.xy);
     float z = t_z.Load(int3(px, 0));
     if (z >= SKY_Z || z >= g_fade_end) {
-        u_ao[px] = float4(1, 1, 0.5f, 0.5f);
+        u_ao[px] = float4(1, 1, 128.0f / 255.0f, 128.0f / 255.0f);
         return;
     }
     float2 uv = (px + 0.5f) * g_inv_size;
@@ -154,6 +155,8 @@ void ao_main(uint3 id : SV_DispatchThreadID) {
 
     float visibility = 0.0f;
     float weight_sum = 0.0f;
+    float3 bent = 0.0f;
+    float3 open_side = 0.0f;
     const float falloff_from = radius * (1.0f - g_falloff);
     const float falloff_mul = 1.0f / max(radius - falloff_from, 1e-4f);
 
@@ -206,12 +209,24 @@ void ao_main(uint3 id : SV_DispatchThreadID) {
                     0.25f * (-cos(2.0f * h2 - n_angle) + cos_n + 2.0f * h2 * sin_n);
         visibility += proj_len * saturate(arc);
         weight_sum += proj_len;
+        // The cosine-weighted mean direction of the arc between the horizons, in the slice, and of the same slice with nothing
+        // in the way. Slices are even in screen angle rather than around the view vector, so away from the screen's centre
+        // even an open surface does not sum to its normal. The lean is measured from the open sum, not from the normal.
+        const float3 side_axis = normalize(ortho);
+        float t_side = (6.0f * sin(h1 - n_angle) - sin(3.0f * h1 - n_angle) + 6.0f * sin(h2 - n_angle) - sin(3.0f * h2 - n_angle) +
+                        16.0f * sin_n - 3.0f * (sin(h1 + n_angle) + sin(h2 + n_angle))) / 12.0f;
+        float t_view = (-cos(3.0f * h1 - n_angle) - cos(3.0f * h2 - n_angle) + 8.0f * cos_n -
+                        3.0f * (cos(h1 + n_angle) + cos(h2 + n_angle))) / 12.0f;
+        bent += proj_len * (t_side * side_axis + t_view * v);
+        open_side += proj_len * (sin_n * 4.0f / 3.0f * side_axis + cos_n * 2.0f / 3.0f * v);
     }
     float ao = weight_sum > 0.0f ? visibility / weight_sum : 1.0f;
     ao = pow(saturate(ao), g_power);
-    ao = lerp(ao, 1.0f, saturate((z - g_fade_start) / max(g_fade_end - g_fade_start, 1.0f)));
+    const float fade = saturate((z - g_fade_start) / max(g_fade_end - g_fade_start, 1.0f));
+    ao = lerp(ao, 1.0f, fade);
     float contact = contact_shadow(p, n, z, noise_step);
-    u_ao[px] = float4(ao, contact, n.x * 0.5f + 0.5f, n.y * 0.5f + 0.5f);
+    const float2 lean = length(bent) > 1e-5f && length(open_side) > 1e-5f ? (normalize(bent) - normalize(open_side)).xy * (1.0f - fade) : 0.0f;
+    u_ao[px] = float4(ao, contact, saturate(lean * 127.0f / 255.0f + 128.0f / 255.0f));
 }
 
 //------------------------------------------------------------------------------
@@ -226,7 +241,7 @@ void denoise_main(uint3 id : SV_DispatchThreadID) {
     float z = t_z.Load(int3(px, 0));
     float4 center = t_in.Load(int3(px, 0));
     float tolerance = max(z * 0.015f, 0.02f);
-    float2 sum = center.rg * 0.25f;
+    float4 sum = center * 0.25f;
     float weights = 0.25f;
     for (int y = -2; y <= 2; y++) {
         for (int x = -2; x <= 2; x++) {
@@ -235,9 +250,9 @@ void denoise_main(uint3 id : SV_DispatchThreadID) {
             if (any(q < 0) || any(q >= int2(g_size))) continue;
             float dz = abs(t_z.Load(int3(q, 0)) - z);
             float w = saturate(1.0f - dz / tolerance) * (1.0f / (1.0f + x * x + y * y));
-            sum += t_in.Load(int3(q, 0)).rg * w;
+            sum += t_in.Load(int3(q, 0)) * w;
             weights += w;
         }
     }
-    u_out[px] = float4(sum / weights, center.ba);
+    u_out[px] = sum / weights;
 }

@@ -15,6 +15,7 @@ What it changes
 * Living fires and torches: lights reach further and fall off like real flames, and the nearest 8 cast
   real-time shadows from the world, characters and objects.
 * Ambient occlusion and contact shadows: a new AO pass in place of the game's, with sun contact shadows.
+  Ambient light follows the open part of each surface, and light bounces inside creases on pale materials.
 * Light in the air: sun shafts, a glow around lights and a faint haze in each area's fog colour.
 * Reflections: screen-space reflections on smooth surfaces and water, replacing the probe where a ray hits.
 * Bounce light: lit surfaces colour what faces them, using what is on screen.
@@ -22,6 +23,8 @@ What it changes
 * Image: wider bloom from the whole scene, a smooth highlight roll-off, filmic contrast that leaves near
   black alone, a lift in very dark scenes and dithering. The game's TAA uses a sharper history with gentle
   contrast-adaptive sharpening.
+* Native HDR: on an HDR display the game outputs real HDR, with highlights up to the display's peak and
+  the UI at paper white, in place of Windows Auto HDR. On an SDR display nothing changes.
 * Per-area lighting: all areas, DLC included, are retuned for this model.
 
 Adjusting it
@@ -63,8 +66,18 @@ Too dark or too bright (these are the defaults):
   film_shadow = 1.12    ; shadow contrast; 1 = none
   black_floor = 0.03    ; the darkest pixels fade to black under this instead of clipping; 0 = hard clip
 
+HDR, on an HDR display only. Restart the game after changing enabled:
+  [hdr]
+  enabled = 1        ; 0 = SDR, which hands the image back to Windows Auto HDR if you use it
+  paper_white = 200  ; nits of SDR white. Raise it if the game looks dim beside your desktop, lower it if too bright
+  peak_nits = 0      ; nits the highlights reach; 0 = what the display reports
+  warm_hue = 0.5     ; how much of its usual colour fire keeps above paper white; 0 lets it go redder
+In HDR, F10 compares with the plain game shown at paper white, not with Auto HDR's version of it.
+HDR highlights need the game's anti-aliasing set to TAA or off. With FXAA the image is fine but stays at
+paper white, and dsrle\dsrle.log says so.
+
 Single features turn off with enabled = 0 under [pointshadow], [lightreach], [reflect], [ssgi],
-[volumetrics], [bloom] or [sunshadow]. On a slower GPU, start with [pointshadow] face_size = 512 and
+[volumetrics], [bloom], [sunshadow] or [hdr]. On a slower GPU, start with [pointshadow] face_size = 512 and
 max_lights = 4, and [ssgi] downscale = 4.
 
 Files
@@ -150,9 +163,13 @@ Compatibility
 * ReShade under another name (dxgi.dll) has not been tested with this version. If you try it, keep its
   colour effects subtle. The mod already sharpens, so skip ReShade sharpening.
 * A game update that changes the shader archives makes the shader replacements stop applying until
-  this mod is updated. Nothing breaks: those shaders simply stay vanilla.
+  this mod is updated. Nothing breaks: those shaders simply stay vanilla. Native HDR also depends on a
+  shader in the game's executable. If an update changes it the image looks washed out and dsrle\dsrle.log
+  says so; set [hdr] enabled = 0 until this mod is updated.
 * The anti-aliasing improvements apply to the game's TAA pass (tested with anti-aliasing on). With
   anti-aliasing off they do nothing.
+* With native HDR on, overlays such as Steam's draw for an SDR screen and may look dim. If Windows HDR is
+  turned off while the game runs, the image falls back to fit an SDR screen until the game restarts.
 
 Online play
 -----------

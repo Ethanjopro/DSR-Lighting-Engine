@@ -12,7 +12,9 @@ A lighting engine for Dark Souls Remastered (PC, DX11), in the manner of the DS2
 - **Torch and fire shadows**: real-time cube shadows for the nearest lights (`engine/src/pointshadow.cpp`, world store in `engine/src/casters.cpp`), and a longer reach for the game's small lights (`engine/src/lightreach.cpp`).
 - **Volumetrics**: light in the air around the game's clustered lights, over vanilla's per-object fog (`engine/src/volumetrics.cpp`).
 - **Reflections and bounce light**: screen-space reflections (`engine/src/reflect.cpp`) and screen-space one-bounce light (`engine/src/ssgi.cpp`).
+- **Ambient**: bent normals from the GTAO pass's horizons, and light bouncing inside creases, in `DSRLE_ENGINE_BENT` (`shaders/features/dsrle_features.fxh`).
 - **Image**: wide bloom (`engine/src/bloom.cpp`), and in the composite (`engine/data/hlsl/composite.hlsl`) a highlight roll-off, filmic contrast that leaves near black alone, a lift in very dark scenes and dither.
+- **Native HDR**: a flip-model scRGB swap chain on an HDR desktop, an extended image from the composite, and a replacement for the game's last blit (`engine/src/hdr.cpp`, `composite_hdr.hlsl`, `hdr_final.hlsl`). Off, or on an SDR desktop, the game's own path runs.
 - From 1.0: the per-area DrawParam retune (`spec/areas/*.toml`), a real-time sun on non-lightmapped draws, soft shadow filtering, specular occlusion, smoother point-light falloff, and a sharper TAA resolve.
 
 F10 flips the whole engine on and off in game; `dsrle\dsrle.ini` reloads live.
@@ -45,7 +47,8 @@ The shader builds need the git-ignored `vanilla_src/` tree, which is recovered l
 
 ## Testing tools
 - `tools/test_session.ps1` swaps the test save in, then restores and hash-checks the real save and removes the DLL. Everything below runs inside it.
-- `tools/engine_ab.ps1` compares settings variants in one game session (they reload live); `tools/engine_soak.ps1` warps through every bonfire with the engine on.
+- `tools/engine_ab.ps1` compares settings variants in one game session (they reload live); `tools/engine_soak.ps1` warps through every bonfire with the engine on. Sessions run in SDR unless given `-Hdr`, because the swap chain is made when the game starts. HDR shots are scRGB: read them with `dds2png.shot_image` (the same 8-bit image an SDR shot holds) and `engine/tools/hdr_stats.py` (nits, and a map of the highlights).
+- When a run's state detection fails, its confirm presses can reach the game: one failed run kindled the Sen's bonfire in the test save, which changes that area's shots. Copies of the test save from before each session are in `saves/backup`.
 - `engine/tools/ab_sheet.py` builds side-by-sides; `engine/tools/trace_report.py` and `dds2png.py` read a frame trace (`dsrle\trigger_trace`).
 - Screens come from the DLL's back-buffer dump (`dsrle\trigger_shot`). **Do not judge from desktop captures on this machine:** the desktop is HDR with Auto HDR on the game, so GDI returns a brighter, clipped image. Everything captured that way before 2026-10-31, including `looks/targets.json`, is skewed.
 - `tools/shader_session.ps1`, `tools/capture_set.ps1`, `tools/taa_burst_set.ps1`, `tools/check_looks.py`, `tools/ab_report.py` and `tools/contact_sheet.py` are from the 1.0 loose-file work.

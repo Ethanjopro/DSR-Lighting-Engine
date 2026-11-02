@@ -290,7 +290,7 @@
 // Only for shaders the DLL swaps in at runtime (engine/src/pack.cpp); those can read data the DLL binds,
 // which the loose-file builds cannot.
 //   b3                     DsrleEngine: runtime strengths, written by the DLL each frame.
-//   t8 (gSMP_AOMap)        written by the DLL's GTAO: r ambient occlusion, g sun contact shadow.
+//   t8 (gSMP_AOMap)        written by the DLL's GTAO: r ambient occlusion, g sun contact shadow, ba the bent normal's lean.
 //   t19                    the DLL's world sun shadow atlas (engine/src/sunshadow.cpp), four ortho cascades.
 //   b4, t20, t21           the DLL's point light shadows (engine/src/pointshadow.cpp): a cube array and a map from
 //                          light id to cube. b4 and the map are written just before each list executes.
@@ -312,6 +312,8 @@ cbuffer DsrleEngine : register(b3)
 	float4 gDsrleSunParam;   // x normal offset in texels, y filter radius in texels, z 1/atlas size, w direct sun gain
 	float4 gDsrleFill;       // probe (x) and hemisphere (y) fill where the row has a sun, the same (z, w) where it has none
 	float4 gDsrleLight;      // x point light gain, y and z baked gate on the sun: saturate(lum * y) ^ z, w point light falloff
+	float4 gDsrleComposite[2]; // composite.hlsl's
+	float4 gDsrleAmbient;    // x bent normal, y light bouncing inside creases, w debug view
 };
 Texture2D<float> gDsrleSunAtlas : register(t19);
 Texture2D<float4> gDsrleBounce : register(t25);
@@ -435,8 +437,53 @@ float dsrle_PointVisibility(int lightId, float3 worldPos, float3 N, float dist, 
 			(specAmb) *= lerp(float3(1.0f, 1.0f, 1.0f), dsrleRate, dsrleWs); \
 		} \
 	}
+// Ambient light reaches a surface through the open part of its hemisphere, so it is read in the direction that part leans,
+// taken from the AO pass and added to the shading normal to keep its detail. A wall by a floor takes more of what lies out in
+// the room and less of what the floor hides, which gives the probes and the hemisphere their colour back in corners. The AO
+// pass stores the lean's view x and y only, so z comes from keeping the normal unit length.
+// Then the light that bounces around inside a crease (Jimenez et al. 2016, fit to albedo): AO alone counts every bounce as
+// lost, which turns creases in pale stone black, while dark materials really do stay dark. The game goes on to multiply the
+// ambient by AO, so this scales it by the ratio. Only the diffuse share of the probe term takes either. Translucent draws
+// keep the game's behaviour: the AO texture describes whatever lies behind them.
+// The debug views go on top of the fill, and the game's AO still dims them. 1 lean from the normal, 2 camera axes in the
+// surface-to-eye vector, to check them: red falls left to right, green rises top to bottom.
+#define DSRLE_ENGINE_BENT(diffAmb, specAmb, N, V, lightRate, flags) \
+	if (gFC_SAOParams.w != 0.0f && ((flags) & (DSRLE_VF_GHOST | DSRLE_VF_FAM_SNOW | DSRLE_VF_BASE_SNOW | DSRLE_VF_TRANSLUCENT)) == 0u) { \
+		const float4 dsrleT8b = tex2Dlod(gSMP_AOMap, float4(In.VtxClp.xy * gFC_SAOParams.xy, 0.0f, 0.0f)); \
+		const float3 dsrleCamRight = normalize(gFC_WorldViewClipMtx._m00_m10_m20); \
+		const float3 dsrleCamUp = normalize(gFC_WorldViewClipMtx._m01_m11_m21); \
+		const float3 dsrleCamAway = normalize(gFC_WorldViewClipMtx._m03_m13_m23); \
+		const float2 dsrleLean = (dsrleT8b.ba * 255.0f - 128.0f) / 127.0f; \
+		const float3 dsrleDiffProbe = Mtl.LightPower * Mtl.DiffuseColor * (lightRate); \
+		const float3 dsrleProbeHere = CalcDiffuseLD(N); \
+		float3 dsrleProbeBent = dsrleProbeHere; \
+		[branch] if (gDsrleAmbient.x > 0.0f) { \
+			const float2 dsrleBentXY = float2(dot((N), dsrleCamRight), dot((N), dsrleCamUp)) + (gDsrleAmbient.x * (1.0f - gDsrleDraw.x)) * dsrleLean; \
+			const float dsrleBentZ = (dot((N), dsrleCamAway) < 0.0f ? -1.0f : 1.0f) * sqrt(saturate(1.0f - dot(dsrleBentXY, dsrleBentXY))); \
+			const float3 dsrleBentN = normalize(dsrleBentXY.x * dsrleCamRight + dsrleBentXY.y * dsrleCamUp + dsrleBentZ * dsrleCamAway); \
+			(diffAmb) += Mtl.DiffuseColor * (CalcHemAmbient(dsrleBentN) - CalcHemAmbient(N)); \
+			dsrleProbeBent = CalcDiffuseLD(dsrleBentN); \
+		} \
+		const float3 dsrleBounceAlbedo = saturate(Mtl.DiffuseColor); \
+		const float3 dsrleBounceA = 2.0404f * dsrleBounceAlbedo - 0.3324f; \
+		const float3 dsrleBounceB = -4.7951f * dsrleBounceAlbedo + 0.6417f; \
+		const float3 dsrleBounceC = 2.7552f * dsrleBounceAlbedo + 0.6903f; \
+		const float3 dsrleBounceRatio = lerp(float3(1.0f, 1.0f, 1.0f), max(1.0f, (dsrleT8b.r * dsrleBounceA + dsrleBounceB) * dsrleT8b.r + dsrleBounceC), gDsrleAmbient.y); \
+		(diffAmb) = max((diffAmb), 0.0f) * dsrleBounceRatio; \
+		(specAmb) = max((specAmb) + dsrleDiffProbe * (dsrleProbeBent * dsrleBounceRatio - dsrleProbeHere), 0.0f); \
+	}
+#define DSRLE_ENGINE_BENT_DEBUG(diffAmb, specAmb, V) \
+	if (gDsrleAmbient.w == 1.0f) { \
+		(specAmb) = 0.0f; \
+		(diffAmb) = float3(tex2Dlod(gSMP_AOMap, float4(In.VtxClp.xy * gFC_SAOParams.xy, 0.0f, 0.0f)).ba, 0.5f); \
+	} else if (gDsrleAmbient.w == 2.0f) { \
+		(specAmb) = 0.0f; \
+		(diffAmb) = float3(dot((V), normalize(gFC_WorldViewClipMtx._m00_m10_m20)), dot((V), normalize(gFC_WorldViewClipMtx._m01_m11_m21)), 0.0f) * 0.5f + 0.5f; \
+	}
 #else
 #define DSRLE_ENGINE_AMBIENT(diffAmb, specAmb, N, flags)
+#define DSRLE_ENGINE_BENT(diffAmb, specAmb, N, V, lightRate, flags)
+#define DSRLE_ENGINE_BENT_DEBUG(diffAmb, specAmb, V)
 #endif
 
 //==============================================================================
@@ -553,10 +600,12 @@ float dsrle_WaterTrace(float3 P, float3 vecRef, out float2 uv)
 	const float3 R = normalize(float3(vecRef.x, max(vecRef.y, 0.02f), vecRef.z));
 	const float w0 = dot(gDsrleRefRowW.xyz, P);
 	const float wd = dot(gDsrleRefRowW.xyz, R);
+	const float3 start = P + float3(0.0f, 0.02f + 0.0005f * w0, 0.0f);
+	const float wStart = dot(gDsrleRefRowW, float4(start, 1.0f));
 	float len = gDsrleRefWater.w;
-	if (wd < 0.0f) len = min(len, (0.1f - w0) / wd);
+	// From the lifted start: looking steeply down on far water from high up, the lift can carry the ray's end behind the camera.
+	if (wd < 0.0f) len = min(len, (0.1f - wStart) / wd);
 	if (len > 0.0f) {
-		const float3 start = P + float3(0.0f, 0.02f + 0.0005f * w0, 0.0f);
 		const float3 o = dsrle_RefCells(start);
 		const float3 d = dsrle_RefCells(start + R * len) - o;
 		const float2 big = float2(abs(d.x) > 1e-6f ? d.x : 1e-6f, abs(d.y) > 1e-6f ? d.y : 1e-6f);
@@ -603,7 +652,9 @@ float dsrle_WaterTrace(float3 P, float3 vecRef, out float2 uv)
 		}
 		if (tHit >= 0.0f) {
 			uv = (o.xy + d.xy * tHit) / gDsrleRefZ.zw;
-			weight = dsrle_RefEdge(uv);
+			// t runs along the screen, this along the ray, in metres: a hit near the end of the reach fades instead of cutting off.
+			const float metres = len * tHit * wStart / lerp(wStart + wd * len, wStart, tHit);
+			weight = dsrle_RefEdge(uv) * (1.0f - smoothstep(0.75f, 1.0f, metres / gDsrleRefWater.w));
 			hit = true;
 		}
 	}
@@ -987,9 +1038,11 @@ float dsrle_so_Factor(float NdotV, float vis, float roughness)
 		(specAmb) = dsrleSoDiff + dsrleSoF * ((specAmb) - dsrleSoDiff); \
 		DSRLE_REFLECT_PROBE_AFTER_OCCLUSION((lightRate) * dsrleSoF); \
 	} \
+	DSRLE_ENGINE_BENT(diffAmb, specAmb, N, V, lightRate, flags) \
 	DSRLE_REFLECT_PROBE_BEFORE_FILL(specAmb); \
 	DSRLE_ENGINE_AMBIENT(diffAmb, specAmb, N, flags) \
-	DSRLE_REFLECT_PROBE_AFTER_FILL(specAmb);
+	DSRLE_REFLECT_PROBE_AFTER_FILL(specAmb); \
+	DSRLE_ENGINE_BENT_DEBUG(diffAmb, specAmb, V)
 
 #endif // DSRLE_SPEC_OCC
 

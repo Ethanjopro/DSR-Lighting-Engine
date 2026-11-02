@@ -37,8 +37,8 @@ float max3(float3 v) {
 // highlights to SDR on their first frame, which a threshold would do. For mid greys it is only a lower bound and a solid
 // panel would let a highlight show through, hence the gain, at the price of veils dimming highlights a little early.
 // Only highlights have an extension to remove, and there sdr is large, so the divisions are well behaved where it counts.
-// A UI pixel equal to the SDR pixel cannot be told from no UI, which is why composite_hdr.hlsl keeps the top code free
-// for white UI over clipped sky. Off-white over clipped sky is the weak case: at 85% it gets 60% coverage, so it comes
+// A UI pixel equal to the SDR pixel cannot be told from no UI, which is why composite_hdr.hlsl keeps the top codes free
+// for white UI over clipped sky. Off-white over clipped sky is the weak case: at 85% it gets 48% coverage, so it comes
 // out brighter than it should, though still clearly darker than the sky behind it, which SDR could not manage at all.
 float ui_coverage(float3 now, float3 sdr) {
     float3 d = now - sdr;

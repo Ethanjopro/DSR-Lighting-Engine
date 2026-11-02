@@ -55,9 +55,10 @@ struct PackConstants {
     float light[4];      // x point light gain, y and z baked gate on the sun: saturate(lum * y) ^ z
     float film[4];       // composite.hlsl: x shadow contrast, y highlight contrast, z exposure, w debug view
     float black[4];      // composite.hlsl: x black floor, y dark scene exposure
+    float ambient[4];    // x bent normal, y light bouncing inside creases, w debug view
 };
 static_assert(sizeof(PackConstants) % 16 == 0);
-static_assert(offsetof(PackConstants, film) == 17 * 16 && sizeof(PackConstants) == 19 * 16);  // composite.hlsl's DsrleEngine
+static_assert(offsetof(PackConstants, film) == 17 * 16 && offsetof(PackConstants, ambient) == 19 * 16 && sizeof(PackConstants) == 20 * 16);  // composite.hlsl's and dsrle_features.fxh's DsrleEngine
 
 ID3D11Device* g_device;
 ID3D11Buffer* g_pack_cb;
@@ -73,6 +74,7 @@ float g_fill[4];
 float g_light[4];
 float g_film[4];
 float g_black[4];
+float g_ambient[4];
 ID3D11Buffer* g_draw_kind[2];
 float g_sun_gain;
 
@@ -118,7 +120,8 @@ void read_settings() {
     pointshadow_read_settings();
     const bool sun = g_pack && sunshadow_enabled();
     g_strength[0] = cfg_float("lighting.ao_on_points", 1.0f);
-    g_strength[1] = cfg_float("lighting.contact_shadow", 1.0f);
+    // The game's own AO pass writes its value to every channel of the texture, so there is no contact shadow to read without ours.
+    g_strength[1] = g_gtao ? cfg_float("lighting.contact_shadow", 1.0f) : 0.0f;
     g_strength[2] = sun ? cfg_float("sunshadow.world_strength", 0.3f) : 0.0f;
     g_strength[3] = sun ? cfg_float("sunshadow.lit_strength", 0.3f) : 0.0f;
     g_sun_gain = cfg_float("lighting.sun_gain", 14.0f);
@@ -136,6 +139,10 @@ void read_settings() {
     g_film[3] = cfg_float("composite.debug", 0.0f);
     g_black[0] = cfg_float("composite.black_floor", 0.03f);
     g_black[1] = std::max(cfg_float("composite.dark_exposure", 1.35f), 0.01f);
+    // The lean comes from the engine's AO pass; the game's own leaves those channels holding something else.
+    g_ambient[0] = g_gtao ? cfg_float("lighting.bent_normal", 1.0f) : 0.0f;
+    g_ambient[1] = cfg_float("lighting.ao_bounce", 1.0f);
+    g_ambient[3] = cfg_float("lighting.ambient_debug", 0.0f);
 }
 
 }  // namespace
@@ -317,6 +324,7 @@ void engine_on_execute(ID3D11DeviceContext* immediate, ID3D11CommandList* list) 
     memcpy(c.light, g_light, sizeof(c.light));
     memcpy(c.film, g_film, sizeof(c.film));
     memcpy(c.black, g_black, sizeof(c.black));
+    memcpy(c.ambient, g_ambient, sizeof(c.ambient));
     static PackConstants last;
     static bool have_last;
     if (have_last && memcmp(&c, &last, sizeof(c)) == 0) return;

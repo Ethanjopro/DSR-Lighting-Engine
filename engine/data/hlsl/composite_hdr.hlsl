@@ -20,7 +20,7 @@ cbuffer HdrConstants : register(b4) {
 };
 
 struct HdrOutput {
-    float4 sdr : SV_Target0;       // what the UI draws over: main()'s result with the top code kept free
+    float4 sdr : SV_Target0;       // what the UI draws over: main()'s result with the top codes kept free
     float4 ext : SV_Target1;       // linear, 1 is paper white
     float4 sdr_copy : SV_Target2;  // same bytes as target 0, without the UI, so hdr_final.hlsl can see what the UI changed
 };
@@ -44,11 +44,13 @@ float3 display_limit(float3 e) {
 }
 
 // Red gets headroom while green stays on the curve, which takes flames from orange toward red. Warm pixels keep part of
-// their SDR hue; blue ones have no such problem and keep the extended one.
+// their SDR hue; blue ones have no such problem and keep the extended one. The SDR hue means less as a pixel nears white,
+// and where the grade clips a yellow sky the hue blend moves green alone, so a short ramp here draws a pink edge around
+// its brightest clouds.
 float3 keep_warm_hue(float3 e, float3 s) {
     const float smin = min(s.r, min(s.g, s.b)), smax = max(s.r, max(s.g, s.b));
     const float emin = min(e.r, min(e.g, e.b)), emax = max(e.r, max(e.g, e.b));
-    const float w = g_warm_hue * saturate(min(s.r - s.b, e.r - e.b) / 0.1f);
+    const float w = g_warm_hue * saturate(min(s.r - s.b, e.r - e.b) / 0.4f);
     return lerp(e, emin + (s - smin) / max(smax - smin, 1e-4f) * (emax - emin), w);
 }
 
@@ -64,8 +66,9 @@ HdrOutput hdr_main(float4 pos : SV_Position, float4 uv : TEXCOORD1) {
     o.sdr = main(pos, uv);
     float3 graded = o.sdr.rgb;
     // The grade clips a lot of sky in SDR (Firelink from an exposed 3.5). White UI over a clipped pixel would change
-    // nothing and read as no UI at all, so the top code is left to the UI. One step, and the blit never shows it bare.
-    o.sdr.rgb = min(o.sdr.rgb, 254.0f / 255.0f);
+    // nothing and read as no UI at all, so the top codes are left to the UI, enough for a fade to read as a fade. The blit
+    // shows them bare only under UI, or if a pass the composite does not know of runs before it.
+    o.sdr.rgb = min(o.sdr.rgb, 247.0f / 255.0f);
     o.sdr_copy = o.sdr;
 
     if ((uint)OPERATOR == 0) {

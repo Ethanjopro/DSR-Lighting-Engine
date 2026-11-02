@@ -10,7 +10,9 @@
 // What moving from the game's blit-model chain to flip model changes, and where each is dealt with:
 // - The back buffer is float, so the game's 8-bit view descs would fail: hdr_fix_view_desc.
 // - Its contents are undefined after Present. The last blit covers it every frame, so nothing depends on them. A Present
-//   with no blit before it would show an old frame, and hdr_present_flags logs that if it ever happens.
+//   with no blit before it would show an old frame, and hdr_present_flags logs that if it ever happens. If the blit is never
+//   recognised, as after an update that changes it, the game's own blit writes gamma-encoded values into a linear chain, and
+//   that is logged too.
 // - It is unbound from the immediate context at Present. The last blit runs there and relies on the binding, so
 //   hdr_after_present puts it back.
 // - No MSAA, which leaves the game's own chain in place. Flags GDI cannot honour on float are dropped.
@@ -61,6 +63,7 @@ std::atomic<bool> g_blit_drawn{false};
 std::atomic<bool> g_first_present_logged{false};
 bool g_blit_ever_drawn;
 int g_blitless_logged;
+int g_presents_before_blit;
 
 std::mutex g_lock;  // the composite's list can record on a worker while the blit runs on the immediate context
 ID3D11Buffer* g_cb;
@@ -122,13 +125,17 @@ bool find_output(HWND window, DXGI_OUTPUT_DESC1& out, IDXGIFactory1** keep = nul
     return found;
 }
 
-bool wants_hdr(IUnknown* device, const DXGI_SWAP_CHAIN_DESC& desc) {
-    if (!cfg_bool("engine.enabled", true) || !cfg_bool("hdr.enabled", true)) return false;
-    // An overlay's own device and windows stay out of this.
+// An overlay's own device and its chains stay out of all this.
+bool is_game_device(IUnknown* device) {
     ID3D11Device* d3d = nullptr;
     if (!device || FAILED(device->QueryInterface(IID_PPV_ARGS(&d3d)))) return false;
     d3d->Release();
-    if (d3d != g_device || (g_window && desc.OutputWindow != g_window)) return false;
+    return d3d == g_device;
+}
+
+bool wants_hdr(IUnknown* device, const DXGI_SWAP_CHAIN_DESC& desc) {
+    if (!cfg_bool("engine.enabled", true) || !cfg_bool("hdr.enabled", true)) return false;
+    if (!is_game_device(device) || (g_window && desc.OutputWindow != g_window)) return false;
     if (desc.SampleDesc.Count != 1) {
         logf("hdr: the game asked for %u samples, which flip model cannot do; staying SDR", desc.SampleDesc.Count);
         return false;
@@ -322,13 +329,23 @@ bool hdr_is_final_blit(uint64_t hash_lo, uint64_t hash_hi) {
 
 HRESULT hdr_create_swapchain(IDXGIFactory* factory, IUnknown* device, DXGI_SWAP_CHAIN_DESC* desc, IDXGISwapChain** out, HdrCreateSwapChainFn create) {
     if (!g_device || !desc || !out || !wants_hdr(device, *desc)) {
-        // The game replacing its own HDR chain with one that stays SDR.
-        if (desc && desc->OutputWindow == g_window) {
-            g_active.store(false, std::memory_order_relaxed);
-            g_swapchain = nullptr;
+        if (g_swapchain && desc && is_game_device(device)) {
+            if (desc->OutputWindow != g_window && IsWindow(g_window)) {
+                // Our window is still open, so this is somebody else's, a capture tool on the game's device say.
+                logf("hdr: a swap chain for another window on the game's device; HDR stays on its own window");
+            } else {
+                // The game replacing its own HDR chain with one that stays SDR.
+                logf("hdr: the game made a new swap chain that stays SDR; HDR is off from here");
+                // The window takes no blit-model chain until the flip-model one has really gone.
+                flush_immediate();
+                g_active.store(false, std::memory_order_relaxed);
+                g_swapchain = nullptr;
+            }
         }
         return create(factory, device, desc, out);
     }
+    // A window takes no second flip-model chain until the first has really gone.
+    if (g_swapchain) flush_immediate();
     DXGI_SWAP_CHAIN_DESC hdr = *desc;
     hdr.BufferDesc.Format = kFormat;
     hdr.BufferCount = std::max(desc->BufferCount, 2u);
@@ -380,6 +397,8 @@ UINT hdr_present_flags(IDXGISwapChain* swapchain, UINT sync, UINT flags) {
         } else if (g_blit_ever_drawn && g_blitless_logged < 8) {
             g_blitless_logged++;
             logf("hdr: a Present with no blit before it; flip model shows an old frame there");
+        } else if (!g_blit_ever_drawn && ++g_presents_before_blit == 600) {
+            logf("hdr: 600 frames and the game's last blit has not been recognised. If the game was updated the image is wrong; set hdr.enabled = 0");
         }
     }
     return flags & ~static_cast<UINT>(DXGI_PRESENT_DO_NOT_SEQUENCE);
@@ -467,6 +486,11 @@ bool hdr_draw_final(ID3D11DeviceContext* ctx, UINT count, UINT start) {
     if (input) {
         ID3D11Resource* res = nullptr;
         input->GetResource(&res);
+        static bool s_other_target_logged;
+        if (has_ext && res != g_composite_target && !s_other_target_logged) {
+            s_other_target_logged = true;
+            logf("hdr: the last blit does not read the composite's target, so a pass runs between them; highlights stay at paper white");
+        }
         has_ext = has_ext && res == g_composite_target;
         drop(res);
         drop(input);

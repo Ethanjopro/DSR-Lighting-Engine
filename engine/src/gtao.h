@@ -1,5 +1,5 @@
 // Ground-truth ambient occlusion in place of the game's SSAO chain. It writes the game's own AO texture,
-// so the forward shaders keep reading t8.r unchanged.
+// so the forward shaders keep reading t8.r unchanged, and t8.g and t8.ba carry the sun contact shadow and the bent normal.
 #pragma once
 #include <d3d11.h>
 #include "engine.h"

@@ -251,8 +251,9 @@ float4 apply_ps(float4 pos : SV_Position) : SV_Target {
 
     // Soft limit, hue kept: a very strong light gets a bright core, not a white veil.
     float3 color = max(fog.rgb, 0.0f) * g_strength;
-    // The sky is painted with its own air already, and the whole volume in front of it would wash out its colour.
-    color *= lerp(1.0f, 0.35f, saturate((z / g_z_far - 0.8f) * 5.0f));
+    // The sky is painted with its own air already, and the whole volume in front of it would wash out its colour. A long
+    // ramp, because z is what this follows: a short one draws a straight line across a dark lake.
+    color *= lerp(1.0f, 0.35f, saturate((z / g_z_far - 0.4f) / 0.6f));
     float peak = max(max(color.r, color.g), color.b);
     color *= g_max_glow * (1.0f - exp(-peak / g_max_glow)) / max(peak, 1e-6f);
 
