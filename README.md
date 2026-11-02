@@ -1,31 +1,38 @@
 # DSR Lighting Engine
 
-A lighting overhaul for Dark Souls Remastered (PC, DX11). It retunes the game's per-area lighting data (DrawParam) and upgrades the renderer's shaders. The goal is to keep the original release's area moods while lighting them with a modern model.
+A lighting engine for Dark Souls Remastered (PC, DX11), in the manner of the DS2 Lighting Engine: a `d3d11.dll` proxy replaces the game's lighting at runtime while keeping each area's art direction.
 
-**Status: 1.0.0** (2026-10-30). The release is `release/build/DSR_Lighting_Engine-1.0.0.zip`; build it with the steps below. Its user README is [release/README.txt](release/README.txt). The original plan is in [docs/PLAN.md](docs/PLAN.md).
+**Status: 2.0 beta, under the user's look review.** The design and the measured frame are in [docs/PLAN_v3.md](docs/PLAN_v3.md). Look questions that come down to taste are tabled in [docs/TASTE_QUESTIONS.md](docs/TASTE_QUESTIONS.md). Its user README is [release/README.txt](release/README.txt). The 1.0 loose-file release this grew out of is described in [docs/PLAN.md](docs/PLAN.md).
 
-## What 1.0 contains
-- **Per-area lighting** (`spec/areas/*.toml`, 288 field changes over a10..a18). It was drafted from the look bibles (`looks/`) and refined over three capture rounds against `looks/targets.json`.
-- **FlverPBL shader** (`data/frozen_shaders.json`): a real-time sun on non-lightmapped draws, with per-row strength via LightBank `colA_s` and snow, water and lava excluded. Also soft shadows (16-tap rotated PCF plus a cascade cross-fade), specular occlusion and smoother point-light falloff.
-- **TAA resolve** (`FRPG_Filter_DX11`): a Catmull-Rom history fetch and contrast-adaptive sharpening.
+## What the engine does
+- **GTAO** in place of the game's SSAO, written into the game's own AO texture (`engine/src/gtao.cpp`).
+- **AO on point lights** and **sun contact shadows** (engine versions of the forward shaders, `shaders/features/dsrle_features.fxh`, swapped in at runtime from `dsrle/shaders.pak`).
+- **World sun shadows**: depth prepass draws replayed into four stable cascades (`engine/src/sunshadow.cpp`). Only surfaces with no baked light receive them, except where a setting says otherwise.
+- **Sun table**: each area's sun colour and strength (`spec/sun_rows.toml`, built by `tools/build_v4.py`).
+- **Torch and fire shadows**: real-time cube shadows for the nearest lights (`engine/src/pointshadow.cpp`, world store in `engine/src/casters.cpp`), and a longer reach for the game's small lights (`engine/src/lightreach.cpp`).
+- **Volumetrics**: light in the air around the game's clustered lights, over vanilla's per-object fog (`engine/src/volumetrics.cpp`).
+- **Reflections and bounce light**: screen-space reflections (`engine/src/reflect.cpp`) and screen-space one-bounce light (`engine/src/ssgi.cpp`).
+- **Image**: wide bloom (`engine/src/bloom.cpp`), and in the composite (`engine/data/hlsl/composite.hlsl`) a highlight roll-off, filmic contrast that leaves near black alone, a lift in very dark scenes and dither.
+- From 1.0: the per-area DrawParam retune (`spec/areas/*.toml`), a real-time sun on non-lightmapped draws, soft shadow filtering, specular occlusion, smoother point-light falloff, and a sharper TAA resolve.
+
+F10 flips the whole engine on and off in game; `dsrle\dsrle.ini` reloads live.
 
 ## What the install changes
-Only loose, client-side visual files:
-- `param/DrawParam/a10..a18_DrawParam.parambnd.dcx`
-- `shader/FRPG_FlverPBL_fpo_DX11.shaderbnd.dcx`
-- `shader/FRPG_Filter_DX11.shaderbnd.dcx`
+- Adds `d3d11.dll` and a `dsrle` folder to the game folder. **This is code running in the game process.**
+- Replaces `param/DrawParam/a10..a18_DrawParam.parambnd.dcx`, with backups.
 
-It never touches GameParam, map layout (MSB), events, saves, the executable or any DLL, so it is in the same category as texture mods. Online safety is still not guaranteed. The shipped shader archives carry no debug chunks (`shaders/tools/strip_debug.py`).
+It leaves GameParam, map layout, events, saves, the executable and the game's shader archives alone. It patches no game code and evades nothing. Online safety is not claimed: play offline.
 
 ## Building a release
 ```
 .venv\Scripts\python.exe tools\build.py --out dist\_w4\r3_full                 # DrawParam from spec/areas
 .venv\Scripts\python.exe tools\validate.py --dist dist\_w4\r3_full             # must report 0 errors, 0 warnings
-.venv\Scripts\python.exe shaders\tools\build_features.py                       # FlverPBL (all_sunA = frozen build)
-.venv\Scripts\python.exe shaders\tools\build_taa_variants.py                   # Filter (fil_taa_all)
-.venv\Scripts\python.exe tools\package.py --dp dist\_w4\r3_full --shaders dist\_shader_install\final_v1 --version 1.0.0
+.venv\Scripts\python.exe shaders\tools\build_taa_variants.py                   # the TAA resolve the pack takes
+.venv\Scripts\python.exe shaders\tools\build_pack.py                           # engine/data/shaders.pak
+.\engine\build.ps1                                                             # engine/bin/d3d11.dll
+.venv\Scripts\python.exe tools\package.py --dp dist\_w4\r3_full --version 2.0.0-beta1
 ```
-`dist\_shader_install\final_v1` holds the frozen FlverPBL archive and the `fil_taa_all` Filter archive. The shader builds need the git-ignored `vanilla_src/` tree, which is recovered locally from the game's own files.
+The shader builds need the git-ignored `vanilla_src/` tree, which is recovered locally from the game's own files.
 
 ## Evidence
 | File | What it records |
@@ -37,11 +44,11 @@ It never touches GameParam, map layout (MSB), events, saves, the executable or a
 | `looks/README.md`, `looks/G1..G5.md`, `looks/targets.json` | the look model and the per-bonfire targets |
 
 ## Testing tools
-- `tools/test_session.ps1` swaps the test save in, then restores and hash-checks the real save.
-- `tools/shader_session.ps1` restarts the game per shader variant.
-- `tools/capture_set.ps1` warps to bonfires and captures them.
-- `tools/taa_burst_set.ps1` captures standstill and pan bursts.
-- `tools/check_looks.py` grades captures against the targets; `tools/ab_report.py` and `tools/contact_sheet.py` compare variants.
+- `tools/test_session.ps1` swaps the test save in, then restores and hash-checks the real save and removes the DLL. Everything below runs inside it.
+- `tools/engine_ab.ps1` compares settings variants in one game session (they reload live); `tools/engine_soak.ps1` warps through every bonfire with the engine on.
+- `engine/tools/ab_sheet.py` builds side-by-sides; `engine/tools/trace_report.py` and `dds2png.py` read a frame trace (`dsrle\trigger_trace`).
+- Screens come from the DLL's back-buffer dump (`dsrle\trigger_shot`). **Do not judge from desktop captures on this machine:** the desktop is HDR with Auto HDR on the game, so GDI returns a brighter, clipped image. Everything captured that way before 2026-10-31, including `looks/targets.json`, is skewed.
+- `tools/shader_session.ps1`, `tools/capture_set.ps1`, `tools/taa_burst_set.ps1`, `tools/check_looks.py`, `tools/ab_report.py` and `tools/contact_sheet.py` are from the 1.0 loose-file work.
 
 ## Repository layout
 | Path | Contents |
@@ -51,6 +58,7 @@ It never touches GameParam, map layout (MSB), events, saves, the executable or a
 | `data/` | Vanilla tables, live-row maps and the measurements above. |
 | `spec/` | The mod's lighting changes, written relative to vanilla, and the global rules (`spec/global.toml`). |
 | `looks/` | Per-area look bibles and numeric targets. |
+| `engine/` | The DLL: `src/` C++, `data/` what installs into `dsrle\`, `tools/` trace and build helpers, `tests/` standalone probes. |
 | `shaders/` | Shader hooks, features, the filter rebuild and the builds. |
 | `tools/` | Build, validate, package and capture scripts. |
 | `release/` | The installer, uninstaller and user README; `release/build/` holds the built packages (ignored). |

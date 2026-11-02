@@ -145,7 +145,7 @@
 #endif
 
 //------------------------------------------------------------------------------
-// DSRLE_HOOK_POINTLIGHT(contrib, L, dist, lightColor, N, V, worldPos, lightShadow) [statement]
+// DSRLE_HOOK_POINTLIGHT(contrib, L, dist, lightColor, N, V, worldPos, lightShadow, lightID) [statement]
 //   Point: once per point light, after its BRDF result and before it joins the sum.
 //   Clustered loop (CalcPointLightsClustered), legacy loop (FaceEye PntS) and Gst ghost light.
 //   contrib    inout float3  lightShadow * PointLightContribution(...) (ghost: no lightShadow)
@@ -153,9 +153,10 @@
 //   dist       float         distance to the light
 //   lightColor float4        rgb colour*intensity, w = falloff end radius
 //   lightShadow float        lerp(lightmapShadow, 1, light.attenuation) (1 for legacy/ghost)
+//   lightID    int           id in the clustered light buffers (-1 for legacy/ghost)
 //   Default: no-op.
 #ifndef DSRLE_HOOK_POINTLIGHT
-	#define DSRLE_HOOK_POINTLIGHT(contrib, L, dist, lightColor, N, V, worldPos, lightShadow)
+	#define DSRLE_HOOK_POINTLIGHT(contrib, L, dist, lightColor, N, V, worldPos, lightShadow, lightID)
 #endif
 
 //------------------------------------------------------------------------------

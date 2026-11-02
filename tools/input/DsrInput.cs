@@ -22,6 +22,8 @@ public static class DsrInput
     [StructLayout(LayoutKind.Sequential)]
     struct POINT { public int X, Y; }
 
+    const uint INPUT_MOUSE = 0;
+    const uint MOUSEEVENTF_MOVE = 0x1;
     const uint INPUT_KEYBOARD = 1;
     const uint KEYEVENTF_EXTENDEDKEY = 0x1;
     const uint KEYEVENTF_KEYUP = 0x2;
@@ -94,6 +96,24 @@ public static class DsrInput
         SendInput(1, down, Marshal.SizeOf(typeof(INPUT)));
         Thread.Sleep(holdMs);
         SendInput(1, up, Marshal.SizeOf(typeof(INPUT)));
+    }
+
+    // Relative mouse motion spread across frames. The game's camera is bound to the mouse axes, not to keys.
+    public static void MoveMouse(int dx, int dy, int steps, int gapMs)
+    {
+        int doneX = 0, doneY = 0;
+        for (int s = 1; s <= steps; s++)
+        {
+            INPUT[] m = { new INPUT() };
+            m[0].type = INPUT_MOUSE;
+            m[0].u.mi.dx = dx * s / steps - doneX;
+            m[0].u.mi.dy = dy * s / steps - doneY;
+            m[0].u.mi.dwFlags = MOUSEEVENTF_MOVE;
+            doneX += m[0].u.mi.dx;
+            doneY += m[0].u.mi.dy;
+            SendInput(1, m, Marshal.SizeOf(typeof(INPUT)));
+            Thread.Sleep(gapMs);
+        }
     }
 
     public static RECT ClientScreenRect(IntPtr hWnd)

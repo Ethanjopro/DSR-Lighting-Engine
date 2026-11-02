@@ -98,7 +98,7 @@ MUT_GATES = {  # older cached wired sets (fallback for --skip-build only)
 MUTATIONS = {  # one-line hook mutations whose changed set is the hook's wired set
     "shadow": "#define DSRLE_HOOK_SHADOW(rate, worldPos, N, eyeVec, flags) ((rate) * 0.5f)",
     "amb": "#define DSRLE_HOOK_AMBIENT(diffAmb, specAmb, N, V, worldPos, lightRate, flags) diffAmb *= 0.5f;",
-    "pl": "#define DSRLE_HOOK_POINTLIGHT(contrib, L, dist, lightColor, N, V, worldPos, lightShadow) contrib *= 0.5f;",
+    "pl": "#define DSRLE_HOOK_POINTLIGHT(contrib, L, dist, lightColor, N, V, worldPos, lightShadow, lightID) contrib *= 0.5f;",
     "direct": ("#define DSRLE_HOOK_DIRECT(N, V, worldPos, diffColor, f0, roughness, shadowRate, lightmap, flags, "
                "vertexNormal, svPos, specF90) (saturate(dot(N, float3(0.3f, 0.8f, 0.5f))) * diffColor * shadowRate * 1.7f)"),
 }

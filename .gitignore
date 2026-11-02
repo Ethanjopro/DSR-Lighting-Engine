@@ -16,5 +16,10 @@ tools/bin/
 # Extracted game values (regenerate with tools/extract.py)
 data/vanilla/
 
+# Engine build output
+engine/obj/
+engine/bin/
+engine/data/shaders.pak
+
 # Release builds (tools/package.py)
 release/build/

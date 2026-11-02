@@ -46,7 +46,10 @@ try {
         ForEach-Object { Write-Warning "closing WerFault (pid $($_.ProcessId)) left by a crash"; Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     # A failed file restore must never skip the save restore below; it is reported after the save is back.
     $restoreError = $null
-    try { & "$root\tools\restore_vanilla.ps1" | Out-Null } catch { $restoreError = $_ }
+    try {
+        & "$root\tools\restore_vanilla.ps1" | Out-Null
+        & "$root\tools\engine_install.ps1" -Remove -KeepAs "_session_leftover" | Out-Null
+    } catch { $restoreError = $_ }
     Copy-Item $live $test -Force
     Copy-Item $realBak $live -Force
     $sha = Get-FileSha $live

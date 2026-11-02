@@ -139,6 +139,12 @@
 #ifndef DSRLE_FEATURES_FXH
 #define DSRLE_FEATURES_FXH
 
+#ifdef DSRLE_ENGINE
+	// The engine's key light: strength comes from the row and b3, with no cap.
+	#define DSRLE_SUN_UNCAPPED
+	#define DSRLE_SUN_GAIN 1.0f
+#endif
+
 #if defined(DSRLE_SUN_A) || defined(DSRLE_SUN_B)
 
 //---- carrier, gain and cap -------------------------------------------------------
@@ -197,7 +203,13 @@
 //---- visibility ---------------------------------------------------------------
 // Shadow distance fade, the same expression the shadow function uses (In.VecEye.w is
 // the camera distance it is given at every DIRECT call site).
+#ifdef DSRLE_ENGINE
+	// The engine's cascades reach far past the game's shadow range, so the sun follows those instead. dsrleSunVisibility
+	// is set by the ambient hook, which runs first. Past the last cascade the sun fades with the same distance.
+	#define DSRLE_SUN_FADE (dsrleSunVisibility * gDsrleSunParam.w)
+#else
 #define DSRLE_SUN_FADE saturate((gFC_ShadowMapParam.y - In.VecEye.w) * gFC_ShadowMapParam.z)
+#endif
 #ifdef DSRLE_SUN_SHADOW_RENORM
 	#define DSRLE_SUN_VIS(rate) \
 		(1.0f - saturate(dot(float3(1.0f, 1.0f, 1.0f) - pow(abs(rate), 1.0f / max(gFC_DebugPointLightParams.z, 1e-3f)), float3(1.0f, 1.0f, 1.0f)) / \
@@ -206,7 +218,11 @@
 	#define DSRLE_SUN_VIS(rate) (rate)
 #endif
 // Geometric terminator: no sun where the interpolated vertex normal faces away.
+#ifdef DSRLE_ENGINE
+#define DSRLE_SUN_GEO(vertexNormal) lerp(smoothstep(0.0f, 0.1f, dot(normalize(vertexNormal), DSRLE_SUN_L)), 1.0f, gDsrleDraw.x)
+#else
 #define DSRLE_SUN_GEO(vertexNormal) smoothstep(0.0f, 0.1f, dot(normalize(vertexNormal), DSRLE_SUN_L))
+#endif
 
 //---- compile-time gate ----------------------------------------------------------
 #ifdef DSRLE_SUN_ON_SNOW
@@ -214,10 +230,18 @@
 #else
 	#define DSRLE_SUN_NOT_SNOW(flags) ((((flags) & (DSRLE_VF_FAM_SNOW | DSRLE_VF_BASE_SNOW)) == 0u))
 #endif
+#ifdef DSRLE_ENGINE
+// The engine's own atlas shadows every variant, so the key light reaches them all, baked ones included.
+#define DSRLE_SUN_ELIGIBLE(flags) ((((flags) & DSRLE_VF_GHOST) == 0u) && DSRLE_SUN_NOT_SNOW(flags))
+#define DSRLE_SUN_DIFFUSE_ON(flags) DSRLE_SUN_ELIGIBLE(flags)
+#else
 #define DSRLE_SUN_ELIGIBLE(flags) ((((flags) & DSRLE_VF_SHADOWED) != 0u) && (((flags) & DSRLE_VF_GHOST) == 0u) && DSRLE_SUN_NOT_SNOW(flags))
 // Diffuse: shadowed, not a ghost, no light map (both A and B).
 #define DSRLE_SUN_DIFFUSE_ON(flags) (DSRLE_SUN_ELIGIBLE(flags) && (((flags) & DSRLE_VF_LIT) == 0u))
-#ifdef DSRLE_SUN_B
+#endif
+#if defined(DSRLE_ENGINE)
+	#define DSRLE_SUN_ON(flags) DSRLE_SUN_ELIGIBLE(flags)
+#elif defined(DSRLE_SUN_B)
 	// B: specular on every eligible variant, light-mapped ones included.
 	#define DSRLE_SUN_ON(flags) DSRLE_SUN_ELIGIBLE(flags)
 #else
@@ -225,15 +249,32 @@
 #endif
 // Light-mapped specular mask (1 where there is no light map): static point-light shadow
 // times the baked light level.
+#ifdef DSRLE_ENGINE
+// The bake knows every static caster, including the ones the camera has not seen, so it still gates the sun; the
+// exponent in b3 flattens it so the real-time shadow leads.
+#define DSRLE_SUN_BAKED(lightmap, flags) \
+	((((flags) & DSRLE_VF_LIT) != 0u) ? pow(saturate(CalcLuminance((lightmap).rgb) * gDsrleLight.y), gDsrleLight.z) : 1.0f)
+#else
 #define DSRLE_SUN_BAKED(lightmap, flags) \
 	((((flags) & DSRLE_VF_LIT) != 0u) ? ((lightmap).a * saturate(CalcLuminance((lightmap).rgb) * DSRLE_SUN_BAKED_K)) : 1.0f)
+#endif
 
 //---- the light: point-light BRDF without falloff --------------------------------
 // saturate(N.L) * (diffColor/PI [gated] + microfacets_brdf) * radiance * PI
+#ifdef DSRLE_ENGINE
+// A leaf is thin: the side away from the sun glows with what passes through it, and its mesh normals say little about
+// where the leaf really faces. The DLL marks wind-animated meshes in b6.
+#define DSRLE_SUN_LEAF(nl) (0.25f + 0.55f * saturate(nl) + 0.35f * saturate(-(nl)))
+#define DSRLE_SUN_WRAP(N) lerp(saturate(dot((N), DSRLE_SUN_L)), DSRLE_SUN_LEAF(dot((N), DSRLE_SUN_L)), gDsrleDraw.x)
+#define DSRLE_SUN_BRDF(N, V, diffColor, f0, roughness, specF90, flags) \
+	(((DSRLE_SUN_DIFFUSE_ON(flags) ? ((diffColor) * M_INV_PI * DSRLE_SUN_WRAP(N)) : float3(0.0f, 0.0f, 0.0f)) + \
+	  saturate(dot((N), DSRLE_SUN_L)) * microfacets_brdf((N), DSRLE_SUN_L, (V), (f0), (specF90), max((roughness), DSRLE_SUN_MIN_ROUGHNESS))) * DSRLE_SUN_RADIANCE * M_PI)
+#else
 #define DSRLE_SUN_BRDF(N, V, diffColor, f0, roughness, specF90, flags) \
 	(saturate(dot((N), DSRLE_SUN_L)) * \
 	 (((DSRLE_SUN_DIFFUSE_ON(flags) ? ((diffColor) * M_INV_PI) : float3(0.0f, 0.0f, 0.0f)) + \
 	   microfacets_brdf((N), DSRLE_SUN_L, (V), (f0), (specF90), max((roughness), DSRLE_SUN_MIN_ROUGHNESS))) * DSRLE_SUN_RADIANCE * M_PI))
+#endif
 
 #define DSRLE_HOOK_DIRECT(N, V, worldPos, diffColor, f0, roughness, shadowRate, lightmap, flags, vertexNormal, svPos, specF90) \
 	(DSRLE_SUN_ON(flags) \
@@ -242,6 +283,347 @@
 		: float3(0.0f, 0.0f, 0.0f))
 
 #endif // DSRLE_SUN_A || DSRLE_SUN_B
+
+//==============================================================================
+// FEATURE: ENGINE                                            switch: /D DSRLE_ENGINE
+//
+// Only for shaders the DLL swaps in at runtime (engine/src/pack.cpp); those can read data the DLL binds,
+// which the loose-file builds cannot.
+//   b3                     DsrleEngine: runtime strengths, written by the DLL each frame.
+//   t8 (gSMP_AOMap)        written by the DLL's GTAO: r ambient occlusion, g sun contact shadow.
+//   t19                    the DLL's world sun shadow atlas (engine/src/sunshadow.cpp), four ortho cascades.
+//   b4, t20, t21           the DLL's point light shadows (engine/src/pointshadow.cpp): a cube array and a map from
+//                          light id to cube. b4 and the map are written just before each list executes.
+//   t25                    the DLL's bounce light (engine/src/ssgi.cpp): rgb at full resolution, strength included.
+// AO on point lights: vanilla multiplies AO into the probe and hemisphere terms only, so torches and bonfires
+// light every crease evenly. The AMBIENT hook remembers the AO for the point-light hook that runs after it.
+// Contact shadow: scales the probe term (the part vanilla already scales by its shadow rate and light map) and
+// leaves the hemisphere ambient alone, so contact darkening cannot turn black.
+// World sun shadow: the same darkening the game applies for its own shadow map, pow(1 - c22 * occlusion, c101.z), so
+// a world shadow is exactly as dark as the game's art already makes a shadow. It also gates the direct sun.
+// The row gate keeps it off where the light row has no sun (colA_s 0: interiors, caves, night, in the area spec).
+//==============================================================================
+#ifdef DSRLE_ENGINE
+cbuffer DsrleEngine : register(b3)
+{
+	float4 gDsrleStrength;   // x AO on point lights, y contact shadow, z world shadow, w same on light-mapped draws
+	float4 gDsrleSunSplit;   // far view Z of each cascade
+	float4 gDsrleSunUvz[12]; // three rows per cascade, camera-relative position -> atlas u, v, depth
+	float4 gDsrleSunParam;   // x normal offset in texels, y filter radius in texels, z 1/atlas size, w direct sun gain
+	float4 gDsrleFill;       // probe (x) and hemisphere (y) fill where the row has a sun, the same (z, w) where it has none
+	float4 gDsrleLight;      // x point light gain, y and z baked gate on the sun: saturate(lum * y) ^ z, w point light falloff
+};
+Texture2D<float> gDsrleSunAtlas : register(t19);
+Texture2D<float4> gDsrleBounce : register(t25);
+cbuffer DsrleDraw : register(b6)
+{
+	float4 gDsrleDraw;       // x 1 on a wind-animated mesh: foliage. An unbound buffer reads 0
+};
+
+static float dsrleAoForPoints = 1.0f;
+static float dsrleSunVisibility = 1.0f;
+
+// 0 lit .. 1 occluded. 8 comparison taps on a rotated Vogel disk; TAA smooths the rotation noise.
+float dsrle_WorldOcclusion(float3 worldPos, float viewZ, float3 N, float2 pixel)
+{
+	if (viewZ >= gDsrleSunSplit.w || gDsrleSunSplit.w <= 0.0f) return 0.0f;
+	const int c = (int)dot(float4(viewZ >= gDsrleSunSplit.x, viewZ >= gDsrleSunSplit.y, viewZ >= gDsrleSunSplit.z, viewZ >= gDsrleSunSplit.w), float4(1, 1, 1, 1));
+	// Texel size in world units doubles the normal offset per stored cascade radius; x row length gives it directly.
+	const float worldPerUv = 1.0f / length(gDsrleSunUvz[c * 3].xyz);
+	const float3 p = worldPos + N * gDsrleSunParam.x * gDsrleSunParam.z * worldPerUv;
+	const float4 wp = float4(p, 1.0f);
+	float3 uvz = float3(dot(wp, gDsrleSunUvz[c * 3]), dot(wp, gDsrleSunUvz[c * 3 + 1]), dot(wp, gDsrleSunUvz[c * 3 + 2]));
+	uvz.z = min(uvz.z, 0.99999f);  // past the range counts as unoccluded against the cleared depth of 1
+	const float noise = frac(52.9829189f * frac(dot(pixel, float2(0.06711056f, 0.00583715f))));
+	float s, co;
+	sincos(noise * 6.2831853f, s, co);
+	const float r = gDsrleSunParam.y * gDsrleSunParam.z;
+	const float2 ax = float2(co, s) * r, ay = float2(-s, co) * r;
+	// Stay inside this cascade's quadrant.
+	const float2 lo = float2((c & 1) ? 0.5f : 0.0f, (c & 2) ? 0.5f : 0.0f) + r * 1.5f;
+	const float2 hi = lo + 0.5f - r * 3.0f;
+	const float2 uv = clamp(uvz.xy, lo, hi);
+	float acc = 0.0f;
+	acc += gDsrleSunAtlas.SampleCmpLevelZero(gSMP_ShadowMapSampler, uv + 0.1768f * ax + 0.0000f * ay, uvz.z).x;
+	acc += gDsrleSunAtlas.SampleCmpLevelZero(gSMP_ShadowMapSampler, uv - 0.2234f * ax + 0.2047f * ay, uvz.z).x;
+	acc += gDsrleSunAtlas.SampleCmpLevelZero(gSMP_ShadowMapSampler, uv + 0.0475f * ax - 0.5570f * ay, uvz.z).x;
+	acc += gDsrleSunAtlas.SampleCmpLevelZero(gSMP_ShadowMapSampler, uv + 0.4630f * ax + 0.4630f * ay, uvz.z).x;
+	acc += gDsrleSunAtlas.SampleCmpLevelZero(gSMP_ShadowMapSampler, uv - 0.7410f * ax - 0.1260f * ay, uvz.z).x;
+	acc += gDsrleSunAtlas.SampleCmpLevelZero(gSMP_ShadowMapSampler, uv + 0.7560f * ax - 0.3920f * ay, uvz.z).x;
+	acc += gDsrleSunAtlas.SampleCmpLevelZero(gSMP_ShadowMapSampler, uv - 0.2540f * ax + 0.9070f * ay, uvz.z).x;
+	acc += gDsrleSunAtlas.SampleCmpLevelZero(gSMP_ShadowMapSampler, uv - 0.4920f * ax - 0.8340f * ay, uvz.z).x;
+	float occ = acc * 0.125f;
+	// The last cascade fades out, so there is no line where the data ends.
+	const float fadeFrom = gDsrleSunSplit.w * 0.8f;
+	return occ * saturate((gDsrleSunSplit.w - viewZ) / (gDsrleSunSplit.w - fadeFrom));
+}
+
+// Point light shadows. Must match ShaderConstants in engine/src/pointshadow.cpp.
+cbuffer DsrlePointShadow : register(b4)
+{
+	float4 gDsrlePsGlobal;    // x strength, y normal offset per metre of distance, z tap radius in cube direction units, w edge fade
+	float4 gDsrlePsPos[16];   // xyz where the cube was rendered from, camera-relative this frame; w this cube's strength
+	float4 gDsrlePsDepth[16]; // x, y: depth = x + y / major axis; z bias in metres
+};
+TextureCubeArray<float> gDsrlePointCubes : register(t20);
+Buffer<int> gDsrlePointMap : register(t21);  // light id -> cube + 1. 0 is none, which is also what an unbound buffer reads
+static float2 dsrlePointRot = float2(1.0f, 0.0f);  // set by the ambient hook: In.VtxClp is out of reach in the light loop
+
+// 1 lit .. 0 shadowed. worldPos and N as the light loop has them. A negative id (ghost and legacy lights) folds away.
+float dsrle_PointVisibility(int lightId, float3 worldPos, float3 N, float dist, float radius)
+{
+	float vis = 1.0f;
+	const int cube = (lightId >= 0) ? (gDsrlePointMap.Load(lightId) - 1) : -1;
+	[branch] if (cube >= 0)
+	{
+		const float4 place = gDsrlePsPos[cube];
+		const float4 depth = gDsrlePsDepth[cube];
+		float3 v = worldPos - place.xyz;
+		v += N * (max(max(abs(v.x), abs(v.y)), abs(v.z)) * gDsrlePsGlobal.y);
+		const float major = max(max(max(abs(v.x), abs(v.y)), abs(v.z)), 1e-3f);
+		// The cube's stored depth is projected z along its face's axis, which is the major axis of this vector. Past the
+		// far plane counts as unoccluded against the cleared depth of 1.
+		const float reference = min(depth.x + depth.y / max(major - depth.z, 1e-3f), 0.99999f);
+		const float3 dir = v / major;
+		const float3 t = normalize(cross((abs(dir.y) < 0.9f) ? float3(0.0f, 1.0f, 0.0f) : float3(1.0f, 0.0f, 0.0f), dir));
+		const float3 b = normalize(cross(dir, t));
+		const float3 ax = (t * dsrlePointRot.x + b * dsrlePointRot.y) * gDsrlePsGlobal.z;
+		const float3 ay = (b * dsrlePointRot.x - t * dsrlePointRot.y) * gDsrlePsGlobal.z;
+		float occ = gDsrlePointCubes.SampleCmpLevelZero(gSMP_ShadowMapSampler, float4(dir + 0.2185f * ax - 0.0920f * ay, (float)cube), reference);
+		occ += gDsrlePointCubes.SampleCmpLevelZero(gSMP_ShadowMapSampler, float4(dir - 0.5867f * ax + 0.3215f * ay, (float)cube), reference);
+		occ += gDsrlePointCubes.SampleCmpLevelZero(gSMP_ShadowMapSampler, float4(dir - 0.0658f * ax - 0.8797f * ay, (float)cube), reference);
+		occ += gDsrlePointCubes.SampleCmpLevelZero(gSMP_ShadowMapSampler, float4(dir + 0.4340f * ax + 0.6504f * ay, (float)cube), reference);
+		// Shadows leave before the light does, so no line shows where its reach ends.
+		const float edge = saturate((radius - dist) / max(radius * gDsrlePsGlobal.w, 1e-3f));
+		vis = 1.0f - occ * 0.25f * edge * edge * (3.0f - 2.0f * edge) * gDsrlePsGlobal.x * place.w;
+	}
+	return vis;
+}
+
+// The row gate of the sun: colA_s 0 is an interior or a night, and above DSRLE_SUN_SPEC_ONLY it is water or lava.
+#define DSRLE_ENGINE_ROW_HAS_SUN (max(max(gFC_SpcLightCol.r, gFC_SpcLightCol.g), gFC_SpcLightCol.b) > 0.0f && DSRLE_SUN_ROW_GATE > 0.0f)
+#define DSRLE_ENGINE_AMBIENT(diffAmb, specAmb, N, flags) \
+	{ \
+		const bool dsrleSnow = ((flags) & (DSRLE_VF_FAM_SNOW | DSRLE_VF_BASE_SNOW)) != 0u; \
+		const bool dsrleSunRow = DSRLE_ENGINE_ROW_HAS_SUN; \
+		/* The rotation of the point lights' shadow taps: interleaved gradient noise, as the sun's filter uses. */ \
+		sincos(6.2831853f * frac(52.9829189f * frac(dot(In.VtxClp.xy, float2(0.06711056f, 0.00583715f)))), dsrlePointRot.y, dsrlePointRot.x); \
+		float dsrleContact = 1.0f; \
+		if (gFC_SAOParams.w != 0.0f) { \
+			const float4 dsrleT8 = tex2Dlod(gSMP_AOMap, float4(In.VtxClp.xy * gFC_SAOParams.xy, 0.0f, 0.0f)); \
+			dsrleAoForPoints = lerp(1.0f, dsrleT8.r, gDsrleStrength.x); \
+			dsrleContact = lerp(1.0f, dsrleT8.g, gDsrleStrength.y); \
+		} \
+		/* Fill comes down so the key light has something to stand out against. */ \
+		/* Snow takes no sun, so it keeps the fill of a row without one. */ \
+		(specAmb) *= dsrleContact * lerp((dsrleSunRow && !dsrleSnow) ? gDsrleFill.x : gDsrleFill.z, 1.0f, gDsrleDraw.x); \
+		(diffAmb) *= lerp((dsrleSunRow && !dsrleSnow) ? gDsrleFill.y : gDsrleFill.w, 1.0f, gDsrleDraw.x); \
+		/* Bounce light joins the ambient, so AO shapes it. An empty slot reads black, and the planar reflection, which is */ \
+		/* another camera and draws with AO off, gets none. Ghosts and snow stay as they are, as with the sun. */ \
+		if (gFC_SAOParams.w != 0.0f && ((flags) & (DSRLE_VF_GHOST | DSRLE_VF_FAM_SNOW | DSRLE_VF_BASE_SNOW)) == 0u) { \
+			(diffAmb) += Mtl.DiffuseColor * gDsrleBounce.Load(int3((int2)In.VtxClp.xy, 0)).rgb; \
+		} \
+		dsrleSunVisibility = dsrleContact; \
+		/* Snow is lit almost entirely by the probe, so a cast shadow would strip its white; it stays vanilla. */ \
+		const float dsrleWs = dsrleSnow ? 0.0f : (((flags) & DSRLE_VF_LIT) != 0u) ? gDsrleStrength.w : gDsrleStrength.z; \
+		[branch] if (dsrleWs > 0.0f && dsrleSunRow) { \
+			const float dsrleOcc = dsrle_WorldOcclusion(In.VtxWld.xyz, In.VtxWld.w, (N), In.VtxClp.xy); \
+			dsrleSunVisibility *= 1.0f - dsrleOcc; \
+			/* A face turned from the sun is not in a cast shadow: its probe light is the game's own look. */ \
+			const float dsrleFacing = smoothstep(0.0f, 0.3f, dot((N), -gFC_ShadowLightDir.xyz)); \
+			const float3 dsrleRate = pow(abs(1.0f - gFC_ShadowColor.xyz * dsrleOcc * dsrleFacing), gFC_DebugPointLightParams.z); \
+			(specAmb) *= lerp(float3(1.0f, 1.0f, 1.0f), dsrleRate, dsrleWs); \
+		} \
+	}
+#else
+#define DSRLE_ENGINE_AMBIENT(diffAmb, specAmb, N, flags)
+#endif
+
+//==============================================================================
+// FEATURE: REFLECT                                       switch: /D DSRLE_ENGINE
+//
+// Screen-space reflections (engine/src/reflect.cpp, engine/data/hlsl/reflect.hlsl).
+//   SV_Target2  R16G16B16A16_UNORM. xy octahedral normal; z high byte roughness, low byte sqrt(R.r); w high byte sqrt(R.g),
+//               low byte sqrt(R.b). R = LightPower * (F0 * DFG.x + F90 * DFG.y) * horizon^2, clamped to 1: what the probe's
+//               own lobe sends to the eye of each unit of incoming light. No fog in it: the traced light is read from the
+//               scene, so it has already been through the air.
+//   SV_Target3  R11G11B10_FLOAT. S + R * f0. S: the specular probe term this pixel really holds, after everything that touches
+//               it: LightPower, light map and shadow, specular occlusion, the engine's fill and world shadow, AO, fog.
+//               f0: what a black surface shows at this pixel, the haze alone.
+//   The composite then does scene + k * (R * traced - confidence * (S + R * f0)), so a hit swaps the probe for the trace, keeping
+//   one layer of haze, and a miss leaves the pixel alone. Only Phn and Snow write them; blended draws bind neither, and what
+//   they output there is discarded by D3D. The DLL masks them for every other shader.
+//   Fog: fog and scattering run in gamma space as out = (A * col^(1/2.2) + B)^2.2. A is known, and out and col give B, so
+//   what the pixel would have been without the probe specular has a closed form, S is the exact difference after fog, and
+//   f0 is B^2.2.
+//   b5 and t24 are bound by the DLL at the first scene copy, for the water draws that follow in that list. An unbound b5
+//   reads 0 and turns all of this off.
+//==============================================================================
+#ifdef DSRLE_ENGINE
+#define DSRLE_REFLECT
+cbuffer DsrleReflect : register(b5)
+{
+	float4 gDsrleRefRowX;   // the camera's clip x, y and w rows, camera-relative
+	float4 gDsrleRefRowY;
+	float4 gDsrleRefRowW;
+	float4 gDsrleRefZ;      // xy: z_ndc = x + y / w; zw: size of the pyramid's level 0, half the full size
+	float4 gDsrleRefWater;  // x strength, y steps, z thickness in metres, w ray length in metres
+	float4 gDsrleRefWater2; // x edge fade, y raw depth from which a pixel counts as sky, z cube fallback, w top level of the pyramid
+};
+Texture2D<float> gDsrleHiz : register(t24);
+
+static float3 dsrleReflectance = float3(0.0f, 0.0f, 0.0f);
+static float3 dsrleProbeSpec = float3(0.0f, 0.0f, 0.0f);
+static float3 dsrleLitBeforeFog = float3(1.0f, 1.0f, 1.0f);
+static float3 dsrleFogPass = float3(1.0f, 1.0f, 1.0f);
+static bool dsrleHasSpecular = false;  // a literal per entry point, so a variant without a specular map folds all of it away
+
+// The probe's lobe, from the same terms the probe function uses. It stays a capture: both inputs go on unchanged.
+#define DSRLE_HOOK_IBL(diffIBL, specIBL, N, V, R, roughness) \
+	{ \
+		const float2 dsrleDfg = CalcSpecularDFG(NdotV, (roughness)); \
+		const float dsrleHoriz = saturate(1.0f + 1.3f * dot(vertexNormal, (R))); \
+		dsrleReflectance = Mtl.LightPower * (Mtl.SpecularColor * dsrleDfg.x + specularF90 * dsrleDfg.y) * dsrleHoriz * dsrleHoriz; \
+		dsrleProbeSpec = Mtl.LightPower * (specIBL); \
+	}
+#define DSRLE_REFLECT_PROBE_AFTER_OCCLUSION(scale) dsrleProbeSpec *= (scale)
+// Whatever the ambient hook scales the probe term by also scales its specular share.
+#define DSRLE_REFLECT_PROBE_BEFORE_FILL(specAmb) const float3 dsrleAmbBeforeFill = (specAmb)
+#define DSRLE_REFLECT_PROBE_AFTER_FILL(specAmb) \
+	dsrleProbeSpec *= (specAmb) / max(dsrleAmbBeforeFill, 1e-6f); \
+	if (gFC_SAOParams.w != 0.0f) dsrleProbeSpec *= tex2Dlod(gSMP_AOMap, float4(In.VtxClp.xy * gFC_SAOParams.xy, 0.0f, 0.0f)).r
+#define DSRLE_HOOK_FINAL(color, N, V, worldPos, svPos, flags) \
+	dsrleHasSpecular = ((flags) & DSRLE_VF_SPC) != 0u; \
+	dsrleLitBeforeFog = (color).rgb; \
+	dsrleFogPass = (1.0f - gFC_FogCol.a * saturate(In.VecNrm.w)) * lerp(float3(1.0f, 1.0f, 1.0f), \
+		exp(-gFC_LsBeta1PlusBeta2.xyz * In.VecEye.w * gFC_LsLightDir.w * 1.4426950f) * gFC_LsTerrainReflectance.rgb, gFC_LsSunColor.a)
+
+float4 dsrle_PackSurface(float3 N, float rough, float3 refl)
+{
+	const float3 n = N / max(abs(N.x) + abs(N.y) + abs(N.z), 1e-5f);
+	float2 o = n.xy;
+	if (n.z < 0.0f) {
+		o = (1.0f - abs(n.yx)) * float2(n.x >= 0.0f ? 1.0f : -1.0f, n.y >= 0.0f ? 1.0f : -1.0f);
+	}
+	const float3 e = round(sqrt(saturate(refl)) * 255.0f);
+	const float r = round(saturate(rough) * 255.0f);
+	// Zero means not written, so the normal keeps off the very corner of the square.
+	return float4(max(o * 0.5f + 0.5f, 1.0f / 65535.0f), (r * 256.0f + e.r) / 65535.0f, (e.g * 256.0f + e.b) / 65535.0f);
+}
+
+#define DSRLE_REFLECT_OUT(Out, mtl) \
+	(Out).DsrleSurface = dsrle_PackSurface((mtl).Normal, (mtl).Roughness, float3(0.0f, 0.0f, 0.0f)); \
+	(Out).DsrleProbe = float4(0.0f, 0.0f, 0.0f, 1.0f); \
+	if (dsrleHasSpecular) { \
+		const float3 dsrleLit = max((mtl).LitColor.rgb, 0.0f); \
+		const float3 dsrleB = pow(dsrleLit, 0.45454545f) - dsrleFogPass * pow(max(dsrleLitBeforeFog, 0.0f), 0.45454545f); \
+		const float3 dsrleNoSpec = pow(max(dsrleFogPass * pow(max(dsrleLitBeforeFog - dsrleProbeSpec, 0.0f), 0.45454545f) + dsrleB, 0.0f), 2.2f); \
+		const float3 dsrleProbeOut = max(dsrleLit - dsrleNoSpec, 0.0f); \
+		const float3 dsrleR = saturate(dsrleReflectance); \
+		(Out).DsrleSurface = dsrle_PackSurface((mtl).Normal, (mtl).Roughness, dsrleR); \
+		(Out).DsrleProbe = float4(dsrleProbeOut + dsrleR * pow(max(dsrleB, 0.0f), 2.2f), 1.0f); \
+	}
+
+#ifdef FRPG_FAMILY_WATER
+// The planar target's clear colour, which is all it holds when the game did not render it.
+#define DSRLE_WATER_PLANAR_EMPTY(col) all(abs((col) - 0.00784314f) < 0.0005f)
+
+float3 dsrle_RefCells(float3 p)
+{
+	const float4 h = float4(p, 1.0f);
+	const float w = dot(gDsrleRefRowW, h);
+	return float3((dot(gDsrleRefRowX, h) / w * 0.5f + 0.5f) * gDsrleRefZ.z, (0.5f - dot(gDsrleRefRowY, h) / w * 0.5f) * gDsrleRefZ.w, gDsrleRefZ.x + gDsrleRefZ.y / w);
+}
+
+float dsrle_RefEdge(float2 uv)
+{
+	const float2 e = saturate(min(uv, 1.0f - uv) / gDsrleRefWater2.x);
+	const float2 s = e * e * (3.0f - 2.0f * e);
+	return s.x * s.y;
+}
+
+// The water's reflection ray against the solid depth pyramid (water itself is not in it). Returns the weight of the hit,
+// 0 for a miss, and where on screen. Rays that end on visible sky take that sky.
+float dsrle_WaterTrace(float3 P, float3 vecRef, out float2 uv)
+{
+	uv = float2(0.0f, 0.0f);
+	float weight = 0.0f;
+	bool hit = false;
+	// A wave can tip the mirror direction under the surface. It still has to leave the water.
+	const float3 R = normalize(float3(vecRef.x, max(vecRef.y, 0.02f), vecRef.z));
+	const float w0 = dot(gDsrleRefRowW.xyz, P);
+	const float wd = dot(gDsrleRefRowW.xyz, R);
+	float len = gDsrleRefWater.w;
+	if (wd < 0.0f) len = min(len, (0.1f - w0) / wd);
+	if (len > 0.0f) {
+		const float3 start = P + float3(0.0f, 0.02f + 0.0005f * w0, 0.0f);
+		const float3 o = dsrle_RefCells(start);
+		const float3 d = dsrle_RefCells(start + R * len) - o;
+		const float2 big = float2(abs(d.x) > 1e-6f ? d.x : 1e-6f, abs(d.y) > 1e-6f ? d.y : 1e-6f);
+		const float2 up = float2(big.x > 0.0f ? 1.0f : 0.0f, big.y > 0.0f ? 1.0f : 0.0f);
+		const float2 tb = (up * gDsrleRefZ.zw - o.xy) / big;
+		const float tEnd = min(1.0f, min(tb.x, tb.y));
+		const float tPerCell = 1.0f / max(max(abs(d.x), abs(d.y)), 1e-3f);
+		const float nudge = 0.02f * tPerCell;
+		const int top = (int)gDsrleRefWater2.w;
+		const int steps = (int)gDsrleRefWater.y;
+		float t = min(1.5f * tPerCell, 0.1f * tEnd);
+		int level = 0;
+		float tHit = -1.0f;
+		[loop] for (int i = 0; i < steps; i++) {
+			if (t >= tEnd || tHit >= 0.0f) break;
+			const float2 pxy = o.xy + d.xy * t;
+			const float pz = o.z + d.z * t;
+			const int2 cell = int2(pxy) >> level;
+			const float2 tf = (((float2)cell + up) * (float)(1 << level) - o.xy) / big;
+			const float tFace = min(tf.x, tf.y);
+			const float zmin = gDsrleHiz.Load(int3(cell, level));
+			const float tPlane = (pz < zmin && d.z > 0.0f) ? (zmin - o.z) / d.z : 1e30f;
+			if (pz < zmin && tPlane >= tFace) {
+				t = max(tFace, t) + nudge;
+				level = min(level + 1, top);
+			} else {
+				if (pz < zmin) t = max(tPlane, t);
+				if (level > 0) {
+					level--;
+				} else {
+					const float qz = o.z + d.z * t;
+					const float zq = gDsrleRefZ.y / min(qz - gDsrleRefZ.x, -1e-7f);
+					const float zs = gDsrleRefZ.y / min(zmin - gDsrleRefZ.x, -1e-7f);
+					const float slope = abs(gDsrleRefZ.y / min(min(qz + abs(d.z) * tPerCell, 0.9999999f) - gDsrleRefZ.x, -1e-7f) - zq);
+					if (zmin >= gDsrleRefWater2.y) {
+						t = tEnd;
+					} else if (zq - zs <= gDsrleRefWater.z + slope) {
+						tHit = t;
+					} else {
+						t = max(tFace, t) + nudge;
+					}
+				}
+			}
+		}
+		if (tHit >= 0.0f) {
+			uv = (o.xy + d.xy * tHit) / gDsrleRefZ.zw;
+			weight = dsrle_RefEdge(uv);
+			hit = true;
+		}
+	}
+	if (!hit && wd > 1e-3f) {
+		const float2 onSky = float2(dot(gDsrleRefRowX.xyz, R) / wd * 0.5f + 0.5f, 0.5f - dot(gDsrleRefRowY.xyz, R) / wd * 0.5f);
+		if (all(onSky > 0.0f) && all(onSky < 1.0f)) {
+			if (gDsrleHiz.Load(int3(int2(onSky * gDsrleRefZ.zw), 0)) >= gDsrleRefWater2.y) {
+				uv = onSky;
+				weight = dsrle_RefEdge(uv);
+			}
+		}
+	}
+	return weight;
+}
+#endif // FRPG_FAMILY_WATER
+#else
+#define DSRLE_REFLECT_PROBE_AFTER_OCCLUSION(scale)
+#define DSRLE_REFLECT_PROBE_BEFORE_FILL(specAmb)
+#define DSRLE_REFLECT_PROBE_AFTER_FILL(specAmb)
+#endif // DSRLE_ENGINE
 
 //==============================================================================
 // QUALITY FEATURES (shadow filter, specular occlusion, point-light falloff)
@@ -572,7 +954,7 @@ float3 dsrle_ss_Single(float4 posLight, float rot, float3 N, float4 eyeVec)
 //------------------------------------------------------------------------------
 #ifdef DSRLE_SPEC_OCC
 
-#ifdef DSRLE_HOOK_IBL
+#if defined(DSRLE_HOOK_IBL) && !defined(DSRLE_REFLECT)
 	#error "DSRLE_SPEC_OCC recomputes the diffuse probe share and assumes DSRLE_HOOK_IBL is the identity"
 #endif
 #ifndef DSRLE_SPEC_OCC_BAKED_K
@@ -603,7 +985,11 @@ float dsrle_so_Factor(float NdotV, float vis, float roughness)
 		const float3 dsrleSoDiff = Mtl.LightPower * (CalcDiffuseLD(N) * Mtl.DiffuseColor) * (lightRate); \
 		const float dsrleSoF = dsrle_so_Factor(saturate(dot((N), (V))), DSRLE_SO_BAKED(flags) * DSRLE_SO_SSAO, Mtl.Roughness); \
 		(specAmb) = dsrleSoDiff + dsrleSoF * ((specAmb) - dsrleSoDiff); \
-	}
+		DSRLE_REFLECT_PROBE_AFTER_OCCLUSION((lightRate) * dsrleSoF); \
+	} \
+	DSRLE_REFLECT_PROBE_BEFORE_FILL(specAmb); \
+	DSRLE_ENGINE_AMBIENT(diffAmb, specAmb, N, flags) \
+	DSRLE_REFLECT_PROBE_AFTER_FILL(specAmb);
 
 #endif // DSRLE_SPEC_OCC
 
@@ -654,6 +1040,7 @@ float dsrle_so_Factor(float NdotV, float vis, float roughness)
 //   lightColor argument (lightColor -> lightPosition, gFC_PntLightCol[i] -> gFC_PntLightPos[i]).
 //   A new call site with another spelling fails to compile. Covered: the clustered loop and the
 //   legacy loop (FaceEye PntS), i.e. the map's PointLightBank lights the statistics above describe.
+//   lightID is the id in the clustered light buffers, or -1 where there is none (legacy and ghost lights).
 //   NOT covered by default: the Gst ghost light (gFC_GhostLightCol / gFC_GhostLightPos, the light the
 //   phantom shaders carry). Its falloff (begin, end) is set by the engine, not by PointLightBank, and
 //   the probe only saw it idle (rgb 0), so none of the numbers above are known to apply to it; a
@@ -669,6 +1056,9 @@ float dsrle_so_Factor(float NdotV, float vis, float roughness)
 
 #ifndef DSRLE_PL_SMOOTH_CAP
 	#define DSRLE_PL_SMOOTH_CAP 1.15f
+#endif
+#ifdef DSRLE_ENGINE
+	#define DSRLE_PL_SMOOTH_BETA gDsrleLight.w  // the engine stretches its lights, so their falloff is a setting
 #endif
 #ifndef DSRLE_PL_SMOOTH_BETA
 	#define DSRLE_PL_SMOOTH_BETA 1.0f
@@ -705,8 +1095,14 @@ float dsrle_pl_Factor(float dist, float radius, int keepVanilla)
 	#define DSRLE_PL__POS_gFC_GhostLightCol int4(0, 0, 0, 0)
 #endif
 
-#define DSRLE_HOOK_POINTLIGHT(contrib, L, dist, lightColor, N, V, worldPos, lightShadow) \
+#ifdef DSRLE_ENGINE
+#define DSRLE_HOOK_POINTLIGHT(contrib, L, dist, lightColor, N, V, worldPos, lightShadow, lightID) \
+	(contrib) *= dsrle_pl_Factor((dist), (lightColor).w, (DSRLE_PL__POS_##lightColor).w) * dsrleAoForPoints * gDsrleLight.x * \
+		dsrle_PointVisibility((int)(lightID), (worldPos), (N), (dist), (lightColor).w)
+#else
+#define DSRLE_HOOK_POINTLIGHT(contrib, L, dist, lightColor, N, V, worldPos, lightShadow, lightID) \
 	(contrib) *= dsrle_pl_Factor((dist), (lightColor).w, (DSRLE_PL__POS_##lightColor).w)
+#endif
 
 #endif // DSRLE_PL_SMOOTH
 
