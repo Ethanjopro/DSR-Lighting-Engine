@@ -9,3 +9,6 @@ bool lightreach_enabled();
 void lightreach_on_upload(ID3D11DeviceContext* ctx, int kind, ID3D11Resource* res, void* data);
 // After that Unmap: once a list has uploaded all three buffers, replaces the cells and ids.
 void lightreach_finish(ID3D11DeviceContext* ctx);
+// At FinishCommandList, and at each present for the immediate context: an unfinished sequence is dropped.
+void lightreach_end_list(ID3D11DeviceContext* ctx);
+void lightreach_on_present(ID3D11DeviceContext* immediate);

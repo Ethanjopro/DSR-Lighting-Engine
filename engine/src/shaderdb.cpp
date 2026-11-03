@@ -2,6 +2,7 @@
 #include "common.h"
 #include "config.h"
 #include "hdr.h"
+#include "maps.h"
 #include <cstdio>
 #include <cstring>
 #include <shared_mutex>
@@ -67,6 +68,7 @@ void shaderdb_register(void* shader_object, const void* bytecode, size_t size, c
     if (it != g_names.end()) {
         info.name = it->second;
         info.role = role_from_shader_name(info.name.c_str());
+        info.votes = maps_shader_votes(info.name.c_str());
     } else {
         char buf[64];
         snprintf(buf, sizeof(buf), "?%016llx%016llx", static_cast<unsigned long long>(info.hash_lo),

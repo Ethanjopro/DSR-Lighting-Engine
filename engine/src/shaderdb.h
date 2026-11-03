@@ -10,6 +10,7 @@ struct ShaderInfo {
     std::string name;          // archive entry name, or "?<hex>" when not in the table
     const char* stage = "";    // "vs", "ps", "cs", ...
     Role role = Role::None;
+    bool votes = false;        // its draws vote on the map (maps_shader_votes), whatever the role
     ID3D11PixelShader* replacement = nullptr;  // engine version of this pixel shader, from the shader pack
 };
 

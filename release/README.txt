@@ -80,6 +80,33 @@ Single features turn off with enabled = 0 under [pointshadow], [lightreach], [re
 [volumetrics], [bloom], [sunshadow] or [hdr]. On a slower GPU, start with [pointshadow] face_size = 512 and
 max_lights = 4, and [ssgi] downscale = 4.
 
+Per-map settings
+----------------
+Four maps have their own values for a few settings, and there they win over the same settings in
+dsrle\dsrle.ini. Walking from one map into another eases between their values over 1.5 s. These
+defaults are in dsrle\maps.ini, which every install replaces:
+  Depths                      [lightreach] reach = 1: torches and fires keep the game's own reach
+  Undead Burg and Parish      [lighting] point_gain = 1.0: dimmer torches and fires
+  Darkroot Garden and Basin   [lightreach] reach = 1 and [lighting] point_gain = 1.3
+  Anor Londo                  [volumetrics] haze_density = 0.000025, light_density = 0.0015 and
+                              max_glow = 0.025: half the haze and glow in the air
+In some parts of the Depths and the Burg the engine cannot yet tell the two maps apart, and there the
+values in dsrle.ini stay. They also stay while the view shows two maps' worlds and neither has [maps]
+c73_share (0.75) of what is drawn.
+Only these four maps can have values of their own. Yours go in dsrle.ini, in a section named after the
+map: m10_00 Depths, m10_01 Undead Burg and Parish, m12_00 Darkroot Garden and Basin or m15_01 Anor
+Londo. Each key carries its section name, and a key there wins over maps.ini:
+  [map.m10_01]
+  lighting.point_gain = 1.2
+To use the values in dsrle.ini everywhere:
+  [maps]
+  enabled = 0
+If the DrawParam files are not this mod's, per-map values stay off and dsrle\dsrle.log says so.
+With [maps] log = 1, dsrle\dsrle.log gets a line every 60 frames on what the detection sees. In it,
+c73s= counts the drawn world's draws by sun direction, as group:draws for up to four groups, c73miss=
+counts the draws with a direction the engine does not know, and why=mixed marks a frame where no
+direction had c73_share of the draws.
+
 Files
 -----
 This mod is code that runs inside the game process. d3d11.dll sits in the game folder, so the game
@@ -93,6 +120,8 @@ Added to the game folder:
   dsrle\shader_names.tsv       tells the engine which game shader is which
   dsrle\dsrle.ini              settings; the game picks up changes to this file while it runs
   dsrle\dsrle.ini.default      this version's default settings
+  dsrle\maps.ini               per-map settings; every install replaces it
+  dsrle\maps_detect.txt        tells the engine which map is which
 The engine also writes its log, dsrle\dsrle.log, in that folder.
 Replaced, after a backup:
   param\DrawParam\a10..a18_DrawParam.parambnd.dcx
@@ -129,6 +158,7 @@ Updating from DSR Lighting Engine 1.0: just run install.bat. 1.0 replaced the sh
 installer puts the vanilla ones back from 1.0's backup and says so.
 Reinstalling or updating keeps your dsrle\dsrle.ini. The new version's defaults are written beside it
 as dsrle.ini.default; settings the new version adds use their built-in default until you add them.
+dsrle\maps.ini is always replaced, so keep your own per-map values in dsrle.ini.
 
 Uninstall
 ---------

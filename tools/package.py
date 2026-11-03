@@ -1,11 +1,12 @@
 """Assemble the release: release/build/DSR_Lighting_Engine-<version>/ (files/, manifest.json, install/uninstall scripts,
-README) plus a zip of it. Inputs: engine/bin/d3d11.dll, engine/data, a DrawParam build (tools/build.py output) and release/.
+README) plus a zip of it. Inputs: engine/bin/d3d11.dll, engine/data, a DrawParam build (tools/build_v4.py output) and release/.
 
-    .venv\\Scripts\\python.exe tools\\package.py --version 2.0.0-beta1 [--dp dist\\_w4\\r3_full]
+    .venv\\Scripts\\python.exe tools\\package.py --version 2.0.0-beta1 [--dp dist\\_v4\\sun]
 
 It refuses, before writing anything, if an input is missing, if d3d11.dll is older than engine/src or shaders.pak older
 than shaders/features, if engine/data holds a file not on the release list, if the pack carries debug chunks (SPDB embeds
-HLSL source), or if a shipped file names a local path. Build folders stay as they are: the two changes to shipped bytes
+HLSL source), if maps_detect.txt was emitted from another DrawParam than --dp, or if a shipped file names a local path.
+Build folders stay as they are: the two changes to shipped bytes
 are made on the copy (dump_unknown forced to 0 in dsrle.ini, and the local folder cut from the .pdb path in d3d11.dll).
 
 manifest.json records each file's sha256, the vanilla sha256 of a file it replaces (null for a new file), and the vanilla
@@ -28,13 +29,14 @@ sys.path.insert(0, str(ROOT / "shaders" / "tools"))
 from strip_debug import has_debug  # noqa: E402
 
 NAME = "DSR_Lighting_Engine"
-DEFAULT_DP = "dist/_w4/r3_full"
+DEFAULT_DP = "dist/_v4/sun"
 SCRIPTS = ["install.ps1", "uninstall.ps1", "common.ps1", "install.bat", "uninstall.bat", "README.txt"]
 DRAWPARAM = [f"param/DrawParam/a{n}_DrawParam.parambnd.dcx" for n in range(10, 19)]
 REQUIRES_VANILLA = ["shader/FRPG_FlverPBL_fpo_DX11.shaderbnd.dcx", "shader/FRPG_Filter_DX11.shaderbnd.dcx"]
 # What goes from engine/data into the game's dsrle folder. A new runtime file must be added here; until then it stops
 # the build, so nothing the DLL needs is dropped silently and no stray dev file ships.
-DATA_FILES = ["shaders.pak", "shader_names.tsv", "dsrle.ini"]
+DATA_FILES = ["shaders.pak", "shader_names.tsv", "dsrle.ini", "maps.ini", "maps_detect.txt"]
+EMIT = "tools/maps_table.py --emit engine/data/maps_detect.txt --dp"
 HLSL_SUFFIXES = (".hlsl", ".hlsli")
 NEVER = re.compile(r"\.(pdb|map|exp|lib|obj|ilk|dxbc|log|shaderbnd|shaderbnd\.dcx)$|(^|/)(vanilla_src|captures|trace|unknown)(/|$)", re.I)
 
@@ -151,6 +153,22 @@ def check_pak(pak: bytes) -> int:
     return count
 
 
+def check_detect(table: bytes, drawparam: dict[str, bytes], dp: str) -> None:
+    """maps_detect.txt (tools/maps_table.py) is derived from one DrawParam build, and the engine turns per-map settings
+    off when the hashes it records differ from the installed files. So it must match the DrawParam shipped beside it."""
+    try:
+        lines = table.decode("ascii").split("\n")
+    except UnicodeDecodeError:
+        fail("maps_detect.txt is not ASCII")
+    if lines[0] != "dsrle_maps_detect 1" or lines[-2:] != ["end", ""]:
+        fail(f"maps_detect.txt is not a whole format-1 table; run {EMIT} {dp}")
+    recorded = dict(line.split(" ")[1:] for line in lines[1:10] if line.startswith("dp ") and line.count(" ") == 2)
+    for rel, data in drawparam.items():
+        area = rel.rsplit("/", 1)[-1].split("_", 1)[0]
+        if recorded.get(area) != sha(data):
+            fail(f"maps_detect.txt was emitted from another DrawParam ({area} differs from {dp}); run {EMIT} {dp}")
+
+
 def local_path_hits(data: bytes) -> list[str]:
     low = data.lower()
     needles = ["\\users\\"]
@@ -174,6 +192,8 @@ def main() -> None:
     data_dir = ROOT / "engine" / "data"
     require_newer(dll, ROOT / "engine" / "src", "run engine/build.ps1")
     require_newer(data_dir / "shaders.pak", ROOT / "shaders" / "features", "run shaders/tools/build_pack.py")
+    if not (data_dir / "maps_detect.txt").is_file():
+        fail(f"missing input: {data_dir / 'maps_detect.txt'}; run {EMIT} {args.dp}")
 
     if not any((data_dir / "hlsl").glob("*.hlsl")):
         fail(f"missing input: no .hlsl files in {data_dir / 'hlsl'}")
@@ -210,6 +230,7 @@ def main() -> None:
     extra = sorted(f.name for f in (dp / "param" / "DrawParam").glob("*") if f"param/DrawParam/{f.name}" not in DRAWPARAM)
     if extra:
         fail(f"{dp / 'param' / 'DrawParam'} holds files outside a10..a18: {extra}")
+    check_detect(payload["dsrle/maps_detect.txt"], {rel: payload[rel] for rel in DRAWPARAM}, args.dp)
 
     scripts = {s: read(ROOT / "release" / s) for s in SCRIPTS}
     allow = allowlist()

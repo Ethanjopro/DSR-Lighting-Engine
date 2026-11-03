@@ -14,7 +14,8 @@ param(
     [int[]]$Turns = @(),    # also capture a view after each of these camera turns, in mouse travel; saved as <slug>_t1, _t2...
     [int]$SettleSec = 5,    # let AO, TAA and exposure settle after a settings change
     [switch]$Hdr,           # start the game with native HDR; the shots are then scRGB, so read them with dds2png.shot_image
-    [switch]$ShowUi         # keep the HUD in the shots
+    [switch]$ShowUi,        # keep the HUD in the shots
+    [switch]$Maps           # keep the per-map values; without it every variant runs with [maps] enabled = 0
 )
 $root = Split-Path -Parent $PSScriptRoot
 $game = "C:\Program Files (x86)\Steam\steamapps\common\DARK SOULS REMASTERED"
@@ -30,6 +31,8 @@ function Set-Variant([string]$Name) {
         # A variant is the base settings plus its own overrides; a later value for a key wins.
         $text = (Get-Content -Raw "$root\engine\data\dsrle.ini") + "`n" + (Get-Content -Raw "$root\engine\variants\$Name.ini") + "`n[engine]`nhide_ui = $hide`n"
     }
+    # A per-map value beats the global key, so a variant's global value would not show in those maps.
+    if (-not $Maps) { $text += "[maps]`nenabled = 0`n" }
     [IO.File]::WriteAllText($ini, $text)
 }
 
@@ -71,6 +74,8 @@ function Invoke-EngineTrace([string]$Slug) {
 
 $bonfires = (Get-Content -Raw "$root\data\bonfires.json" | ConvertFrom-Json).bonfires | Where-Object { $Only -contains $_.slug }
 if (-not $bonfires) { throw "no bonfires selected" }
+if ($Maps) { Write-Output "per-map values: kept (-Maps), [maps] as dsrle.ini and each variant set it" }
+else { Write-Output "per-map values: off in every variant ([maps] enabled = 0); -Maps keeps them" }
 
 try {
     & "$root\tools\engine_install.ps1" -Remove -KeepAs "$Run\_prev" | Out-Null

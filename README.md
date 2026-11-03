@@ -15,6 +15,7 @@ A lighting engine for Dark Souls Remastered (PC, DX11), in the manner of the DS2
 - **Ambient**: bent normals from the GTAO pass's horizons, and light bouncing inside creases, in `DSRLE_ENGINE_BENT` (`shaders/features/dsrle_features.fxh`).
 - **Image**: wide bloom (`engine/src/bloom.cpp`), and in the composite (`engine/data/hlsl/composite.hlsl`) a highlight roll-off, filmic contrast that leaves near black alone, a lift in very dark scenes and dither.
 - **Native HDR**: a flip-model scRGB swap chain on an HDR desktop, an extended image from the composite, and a replacement for the game's last blit (`engine/src/hdr.cpp`, `composite_hdr.hlsl`, `hdr_final.hlsl`). Off, or on an SDR desktop, the game's own path runs.
+- **Per-map settings**: a few settings take their own values in four maps (`engine/data/maps.ini`). The engine tells the maps apart from the sun direction and light rows that the forward draws carry, matched against a table that `tools/maps_table.py --emit` builds from the shipped DrawParam (`engine/src/maps.cpp`, rules in `spec/maps.toml`). Unknown or shared views keep the global values.
 - From 1.0: the per-area DrawParam retune (`spec/areas/*.toml`), a real-time sun on non-lightmapped draws, soft shadow filtering, specular occlusion, smoother point-light falloff, and a sharper TAA resolve.
 
 F10 flips the whole engine on and off in game; `dsrle\dsrle.ini` reloads live.
@@ -32,8 +33,11 @@ It leaves GameParam, map layout, events, saves, the executable and the game's sh
 .venv\Scripts\python.exe shaders\tools\build_taa_variants.py                   # the TAA resolve the pack takes
 .venv\Scripts\python.exe shaders\tools\build_pack.py                           # engine/data/shaders.pak
 .\engine\build.ps1                                                             # engine/bin/d3d11.dll
-.venv\Scripts\python.exe tools\package.py --dp dist\_w4\r3_full --version 2.0.0-beta1
+.venv\Scripts\python.exe tools\build_v4.py --out dist\_v4\sun                  # the 2.0 DrawParam: 1.0 specs plus the sun table
+.venv\Scripts\python.exe tools\maps_table.py --emit engine\data\maps_detect.txt --dp dist\_v4\sun   # refuses on any leak
+.venv\Scripts\python.exe tools\package.py --dp dist\_v4\sun --version 2.0.0-beta7
 ```
+`engine/data/maps_detect.txt` is derived from the DrawParam, so it is git-ignored and must be emitted from the same build that is packaged; `package.py` checks the hashes.
 The shader builds need the git-ignored `vanilla_src/` tree, which is recovered locally from the game's own files.
 
 ## Evidence
@@ -49,6 +53,7 @@ The shader builds need the git-ignored `vanilla_src/` tree, which is recovered l
 - `tools/test_session.ps1` swaps the test save in, then restores and hash-checks the real save and removes the DLL. Everything below runs inside it.
 - `tools/engine_ab.ps1` compares settings variants in one game session (they reload live); `tools/engine_soak.ps1` warps through every bonfire with the engine on. Sessions run in SDR unless given `-Hdr`, because the swap chain is made when the game starts. HDR shots are scRGB: read them with `dds2png.shot_image` (the same 8-bit image an SDR shot holds) and `engine/tools/hdr_stats.py` (nits, and a map of the highlights).
 - When a run's state detection fails, its confirm presses can reach the game: one failed run kindled the Sen's bonfire in the test save, which changes that area's shots. Copies of the test save from before each session are in `saves/backup`.
+- `tools/maps_session.ps1` warps through the bonfires with per-map detection logging but not applying (`[maps] apply = 0`), and marks each arrival and turn in the log; `engine_ab.ps1` turns per-map values off in every variant unless given `-Maps`.
 - `engine/tools/ab_sheet.py` builds side-by-sides; `engine/tools/trace_report.py` and `dds2png.py` read a frame trace (`dsrle\trigger_trace`).
 - Screens come from the DLL's back-buffer dump (`dsrle\trigger_shot`). **Do not judge from desktop captures on this machine:** the desktop is HDR with Auto HDR on the game, so GDI returns a brighter, clipped image. Everything captured that way before 2026-10-31, including `looks/targets.json`, is skewed.
 - `tools/shader_session.ps1`, `tools/capture_set.ps1`, `tools/taa_burst_set.ps1`, `tools/check_looks.py`, `tools/ab_report.py` and `tools/contact_sheet.py` are from the 1.0 loose-file work.

@@ -1,0 +1,89 @@
+# Per-map detection: what tools/maps_table.py needs besides the built DrawParam and the MSBs. --emit writes
+# engine/data/maps_detect.txt (git-ignored, shipped as dsrle/maps_detect.txt) and --simulate replays the rules on it.
+#
+# Nothing here is read from game data. The own-view coverage the two accept is counted from the MSBs, so it is kept in
+# dist/maps_accepted.toml (git-ignored); a run without it fails and prints the values to record there.
+
+# --- Load-screen moves ----------------------------------------------------------------------------------------------
+# Connect collisions that are a load-screen move, not a walkable border. The MSB connect graph minus these edges is the
+# walk graph. A load clears the held map in the engine. A hold is allowed in a group where no rival is a direct walk
+# neighbour of the map, or where each one that is shows the group only in other archives' parts and stands there on a
+# body that is WALK evidence (the Burg and the Valley beside the Darkroot Garden; tools/maps_table.py says how). A
+# rival across one of these edges never blocks a hold, because its load clears the held map first: where the rival's
+# body and some of its parts carry light rows the map's own parts carry too, a frame there showing only those would
+# keep the map held, so the hold relies on that load (the Darkroot Garden against Oolacile, below). A
+# rival two walk edges away can still be reached on foot, and there the protection is that the map in between resets
+# the held map with its own unique row or vote (and hold_frames expires it); --simulate tests every stale held map as
+# a bound, not real routes, and the observe-only session checks the resets. An edge left out counts as walkable, which
+# only makes the rules stricter: that is why m14_00-m10_01 and m16_00-m18_00, whose walkability is unknown, are not
+# here. An edge listed here is also left out of --simulate's look-out view, which takes the two maps as never drawn in
+# one frame, so listing one makes the check looser: each entry is an assumption the gate relies on until a session
+# confirms it.
+
+[[load_screen]]
+maps = ["m12_00", "m12_01"]
+via = "the Manus portal"
+confidence = "high"
+note = """Game knowledge, not checked in a session. Connect collisions link the two maps both ways, so they can be
+loaded together; whether they are ever drawn in one frame is unknown. The gate relies on this entry: a frame looking
+from Oolacile into Darkroot cannot be told from Darkroot's own, so the observe-only session should check that the two
+are never drawn together. The Garden's hold in the direction the two share relies on this load as well: Oolacile's
+body and some of its parts carry light rows Darkroot's parts carry too, evidence for neither map, so a frame in
+Oolacile showing only those, with Darkroot still held, would keep Darkroot's values until a draw only Oolacile's
+geometry carries (one gives the globals, a few make Oolacile the held map), hold_frames or the next load. The sessions
+so far reached Oolacile by bonfire warp, so whether the portal itself gives a load the engine sees is unchecked."""
+
+[[load_screen]]
+maps = ["m15_01", "m11_00"]
+via = "the painting"
+confidence = "high"
+note = "Game knowledge, not checked in a session."
+
+[[load_screen]]
+maps = ["m10_02", "m18_00"]
+via = "the Firelink altar"
+confidence = "medium"
+note = """Game knowledge, not checked in a session. The Kiln also has a connect collision to m16_00, which stays
+walkable."""
+
+[[load_screen]]
+maps = ["m10_02", "m18_01"]
+via = "the crow"
+confidence = "high"
+note = "Game knowledge, not checked in a session. The flight plays as a cutscene in both directions."
+
+# --- Tolerances -----------------------------------------------------------------------------------------------------
+# When two values count as the same. The table records them in its header, so the engine matches with these.
+
+[tolerance]
+dir_deg = 0.5       # c73 against a group direction, and c5 against a tuple direction
+c6_rel = 0.002      # c6, per channel: |a - b| <= c6_abs + c6_rel * max(|a|, |b|). One step of col_s (0.86%) or
+c6_abs = 0.000001   # colA_s (2% or more) is well above it, and c6_abs keeps sun-off rows (c6 0) equal to each other
+
+# --- Groups that always resolve to the globals ----------------------------------------------------------------------
+# Matched by the maps whose collisions name the direction, not by angle or row: the one direction group that collisions
+# of every map listed name is flagged global_only, and the engine then gives the globals there with no vote and no
+# hold. An entry that matches no group or more than one fails the run.
+
+[[global_only]]
+maps = ["m10_00", "m10_01"]
+note = """The direction the Depths and the Burg share. The player's body does not tell the two apart on most of their
+collisions there, so a camera turning at the door could swing the values both ways. A camera box can be added after
+the observe-only session."""
+
+# --- Resolver thresholds --------------------------------------------------------------------------------------------
+# The dsrle.ini [maps] defaults. --simulate uses these; the engine reads its own from dsrle.ini. Shares and dominance
+# are rounded to float32 first, as the engine holds them, so a value such as 0.6 gives the engine's result at a boundary.
+
+[rules]
+c73_share = 0.75    # each voting draw's c73 is matched on its own; the group with the most draws is the frame's when it
+                    # holds this share of the draws that matched a group (a tie goes to the lower group), else the
+                    # frame is mixed and gets the globals with L kept. Draws matching no group are left out. The
+                    # engine's [maps] log line gives the counts as c73s=<group>:<draws>,... (at most four, most
+                    # first), the unmatched draws as c73miss=, and a mixed frame as why=mixed
+min_votes = 3       # E(POS) must reach this, at least 1
+dominance = 4.0     # and be this many times E(SEP)
+walk_share = 0.25   # and, where the map may not be held (a walk rival that could show the group with no WALK draw),
+                    # this share of every vote in the frame
+body_votes = 5      # simulate only: the draws the player's body adds to a frame
+lookout_parts = 3   # simulate only: the draws of the map's own parts, besides the body, in a look-out view

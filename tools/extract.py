@@ -2,9 +2,17 @@
 
 Outputs:
   data/vanilla/<area>.json   {slot: {bank: {row_id: {"name": str, <internal field>: value}}}}
-  data/live_rows.json        {area: {slot0 bank: {row_id: {"maps": [...], "users": {part_type: count}, "place_names": [...]}}}}
+  data/live_rows.json        {area: {slot0 bank: {row_id: {"maps": [...], "users": {part_type: count}, "place_names": [...],
+                                                           "collision_maps": {map: count}, "piece_maps": {map: count}}}}}
   data/row_names_ja.json     sorted unique Japanese row names (input for translation)
   data/row_names_en.json     merged if present (translation output; not generated here)
+
+In live_rows.json, "maps" and "users" are pooled over every part type. Every part carries every bank field, so a row
+listed for a map may only be named by that map's objects or navmeshes. "collision_maps" counts collisions alone: they
+choose the scene-wide rows (ShadowBank, ToneMap, ToneCorrect, Dof, LensFlareEx). "piece_maps" counts map pieces alone,
+only on the banks a map piece picks for its own draws (PIECE_BANKS). tools/maps_table.py, which reads these per-map
+counts without writing live_rows.json, counts more owners for its detection table: a LightBank row belongs to every map
+whose map pieces, objects, collisions (the row the player's body is drawn with) or characters name it.
 
 Usage: python tools/extract.py
 """
@@ -12,7 +20,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 from soulstruct.darksouls1r.maps import MSB
@@ -37,6 +45,8 @@ PART_FIELD_TO_BANK = {
 }
 PART_LISTS = ["map_pieces", "objects", "characters", "player_starts", "collisions", "navmeshes",
               "dummy_objects", "dummy_characters", "connect_collisions"]
+# The banks a map piece picks for its own draws (docs/PLAN.md:57-61).
+PIECE_BANKS = ("LightBank", "FogBank", "LightScatteringBank")
 
 
 def jsonable(v):
@@ -71,12 +81,21 @@ def dump_tables() -> set[str]:
     return names
 
 
-def dump_live_rows() -> None:
-    live = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {"maps": set(), "users": defaultdict(int), "place_names": set()})))
+def iter_msbs(verbose: bool = False):
+    """Yield (map_stem, MSB) for every gameplay map, m10..m18 (the m99 test maps are skipped)."""
     for msb_path in sorted(MSB_DIR.glob("m1[0-8]_*.msb")):
-        map_stem = msb_path.stem
+        yield msb_path.stem, MSB.from_path(msb_path)
+        if verbose:
+            print(f"{msb_path.stem}: parsed")
+
+
+def collect_live_rows(verbose: bool = False) -> dict:
+    """The live_rows.json content: for each area, bank and row, which parts of which maps name the row."""
+    live = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {
+        "maps": set(), "users": defaultdict(int), "place_names": set(),
+        "collision_maps": Counter(), "piece_maps": Counter()})))
+    for map_stem, msb in iter_msbs(verbose):
         area = "a" + map_stem[1:3]
-        msb = MSB.from_path(msb_path)
         for list_name in PART_LISTS:
             for part in getattr(msb, list_name, []):
                 for field_name, bank in PART_FIELD_TO_BANK.items():
@@ -86,19 +105,31 @@ def dump_live_rows() -> None:
                     rec = live[area][bank][str(row_id)]
                     rec["maps"].add(map_stem)
                     rec["users"][list_name] += 1
-                    if list_name == "collisions" and getattr(part, "place_name_banner_id", -1) not in (-1, None):
-                        rec["place_names"].add(int(part.place_name_banner_id))
-        print(f"{map_stem}: parsed")
-    out = {
+                    if list_name == "collisions":
+                        rec["collision_maps"][map_stem] += 1
+                        if getattr(part, "place_name_banner_id", -1) not in (-1, None):
+                            rec["place_names"].add(int(part.place_name_banner_id))
+                    elif list_name == "map_pieces" and bank in PIECE_BANKS:
+                        rec["piece_maps"][map_stem] += 1
+
+    def row_out(bank: str, r: dict) -> dict:
+        out = {"maps": sorted(r["maps"]), "users": dict(r["users"]), "place_names": sorted(r["place_names"]),
+               "collision_maps": dict(sorted(r["collision_maps"].items()))}
+        if bank in PIECE_BANKS:
+            out["piece_maps"] = dict(sorted(r["piece_maps"].items()))
+        return out
+
+    return {
         area: {
-            bank: {
-                rid: {"maps": sorted(r["maps"]), "users": dict(r["users"]), "place_names": sorted(r["place_names"])}
-                for rid, r in sorted(rows.items(), key=lambda kv: int(kv[0]))
-            }
+            bank: {rid: row_out(bank, r) for rid, r in sorted(rows.items(), key=lambda kv: int(kv[0]))}
             for bank, rows in banks.items()
         }
         for area, banks in sorted(live.items())
     }
+
+
+def dump_live_rows() -> None:
+    out = collect_live_rows(verbose=True)
     (DATA / "live_rows.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
 
 

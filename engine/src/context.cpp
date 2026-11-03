@@ -4,6 +4,7 @@
 #include "engine.h"
 #include "hdr.h"
 #include "lightreach.h"
+#include "maps.h"
 #include "reflect.h"
 #include "shaderdb.h"
 #include "pointshadow.h"
@@ -56,6 +57,7 @@ public:
     void STDMETHODCALLTYPE PSSetShader(ID3D11PixelShader* shader, ID3D11ClassInstance* const* instances, UINT count) override {
         const ShaderInfo* info = shader ? shaderdb_find(shader) : nullptr;
         ps_role_ = info ? info->role : Role::None;
+        ps_votes_ = info && info->votes;
         if (ps_role_ == Role::DepthCopy) after_effects_list_ = true;
         ID3D11PixelShader* replacement = nullptr;
         if (info && info->replacement && engine_pack_enabled()) {
@@ -138,6 +140,8 @@ public:
             engine_publish_forward_constants(ps_b0_copy_);
             ps_b0_copied_ = false;
         }
+        // Every voting shader, not only the forward lit ones above: light-mapped pieces carry their own sun direction.
+        if (ps_votes_ && maps_wants_votes()) vote(false);
         if (ps_role_ == Role::ForwardLit && engine_wants_volumetrics_inputs()) engine_offer_volumetrics_inputs(real_);
         if (scene_depth_only_) record_caster(count, start, base, 1, 0, false);
         real_->DrawIndexed(count, start, base);
@@ -150,6 +154,8 @@ public:
     void STDMETHODCALLTYPE DrawIndexedInstanced(UINT count, UINT inst, UINT start, INT base, UINT start_inst) override {
         reflect_on_draw(reflect_, real_, view_);
         if (trace_tracking()) trace_draw(real_, "DIInst", count, start, base, inst, start_inst);
+        // Only the vote: the forward constants and the volumetrics inputs stay with DrawIndexed, as before.
+        if (ps_votes_ && maps_wants_votes()) vote(true);
         if (scene_depth_only_) record_caster(count, start, base, inst, start_inst, true);
         real_->DrawIndexedInstanced(count, inst, start, base, start_inst);
     }
@@ -186,6 +192,9 @@ public:
     HRESULT STDMETHODCALLTYPE Map(ID3D11Resource* res, UINT sub, D3D11_MAP type, UINT flags, D3D11_MAPPED_SUBRESOURCE* mapped) override {
         HRESULT hr = real_->Map(res, sub, type, flags, mapped);
         if (SUCCEEDED(hr)) {
+            // Whatever is written now is not in this buffer's vote copy. Only a captured Unmap below takes a new one, so a
+            // buffer mapped while another is bound stops voting instead of voting with what it held before.
+            forget_vote_copy(res);
             if (type == D3D11_MAP_WRITE_DISCARD) {
                 // These slots also hold smaller blocks (the menu's PS b0 is 80 bytes), so check before keeping
                 // the pointer: Unmap copies a fixed size out of it.
@@ -194,7 +203,7 @@ public:
                     if (width >= sizeof(view_.vp)) vs_b0_data_ = mapped->pData;
                     vs_b0_full_ = width >= kCasterVsBytes;
                 } else if (res == ps_b0_ && (engine_wants_forward_constants() || engine_wants_camera())) {
-                    if (byte_width(res) >= sizeof(ps_b0_copy_)) ps_b0_data_ = mapped->pData;
+                    if (byte_width(res) >= sizeof(ps_b0_copy_)) keep_ps_b0(res, mapped->pData, true);
                 } else if (res == ps_b1_ && scene_depth_only_) {
                     if (byte_width(res) >= sizeof(ps_b1_latest_)) ps_b1_data_ = mapped->pData;
                 } else if (res != ps_b0_ && res != ps_b1_ && (pointshadow_enabled() || lightreach_enabled()) && upload_count_ < kUploads) {
@@ -203,6 +212,11 @@ public:
                     if (const int kind = pointshadow_upload_kind(res)) {
                         upload_[upload_count_++] = Upload{res, mapped->pData, kind};
                     }
+                }
+                // The vote needs only registers 5, 6 and 73, from every block of the frame a voting draw may use, and
+                // leaves the branches above as they were.
+                if (res == ps_b0_ && ps_b0_mapped_ != res && maps_wants_votes() && byte_width(res) >= sizeof(ps_b0_copy_)) {
+                    keep_ps_b0(res, mapped->pData, false);
                 }
             }
             if (trace_tracking()) trace_map(real_, res, sub, type, mapped);
@@ -236,11 +250,18 @@ public:
             memcpy(ps_b1_latest_, ps_b1_data_, sizeof(ps_b1_latest_));
             ps_b1_data_ = nullptr;
         }
-        if (ps_b0_data_ && res == ps_b0_) {
-            // Copied now, offered at the draw: only then is it known which shader family this block belongs to.
-            memcpy(ps_b0_copy_, ps_b0_data_, sizeof(ps_b0_copy_));
-            ps_b0_copied_ = true;
+        // The resource the pointer came from, not the one bound now: a pointer kept from a buffer rebound before its
+        // Unmap would otherwise be read at another buffer's.
+        if (ps_b0_data_ && res == ps_b0_mapped_) {
+            // Copied now, offered at the draw: only then is it known which shader family this block belongs to. A block
+            // rebound before its Unmap is not the next draw's, so as before it is not offered.
+            if (ps_b0_full_ && res == ps_b0_) {
+                memcpy(ps_b0_copy_, ps_b0_data_, sizeof(ps_b0_copy_));
+                ps_b0_copied_ = true;
+            }
+            if (maps_wants_votes()) keep_vote_copy(res, static_cast<const float*>(ps_b0_data_));
             ps_b0_data_ = nullptr;
+            ps_b0_mapped_ = nullptr;
         }
         if (trace_tracking()) trace_unmap(real_, res, sub);
         real_->Unmap(res, sub);
@@ -291,6 +312,8 @@ public:
         if (trace_tracking()) trace_execute_before(real_, list);
         // Lists are recorded in any order and executed in one, so what they read beside their own state is written here.
         engine_on_execute(real_, list);
+        // The list may have written any buffer this context kept a vote copy of.
+        for (VoteCopy& v : vote_copy_) v.res = nullptr;
         real_->ExecuteCommandList(list, restore);
         if (trace_tracking()) trace_execute_after(real_, list);
     }
@@ -300,6 +323,9 @@ public:
         if (trace_tracking() && SUCCEEDED(hr) && out && *out) trace_finish_after(real_, *out);
         // Without restore, the context comes back with cleared state.
         if (SUCCEEDED(hr) && out && *out) pointshadow_on_finish(real_, *out);
+        lightreach_end_list(real_);
+        // A dynamic buffer holds nothing in the next list until it is mapped there.
+        for (VoteCopy& v : vote_copy_) v.res = nullptr;
         if (!casters_.draws.empty()) caster_list_release(casters_);
         reflect_track_list_end(reflect_);
         after_effects_list_ = false;
@@ -314,12 +340,57 @@ private:
         return d.ByteWidth;
     }
 
+    void keep_ps_b0(ID3D11Resource* res, void* data, bool full) {
+        ps_b0_data_ = data;
+        ps_b0_mapped_ = res;
+        ps_b0_full_ = full;
+    }
+
+    // The latest registers 5, 6 and 73 of each block: a draw that reuses a block without mapping it again still votes.
+    // The Map above kept the pointer only for a block of all kForwardRegs registers.
+    void keep_vote_copy(ID3D11Resource* res, const float* block) {
+        VoteCopy* slot = nullptr;
+        for (VoteCopy& v : vote_copy_) {
+            if (v.res == res) slot = &v;
+        }
+        if (!slot) {
+            slot = &vote_copy_[vote_next_];
+            vote_next_ = (vote_next_ + 1) % kVoteCopies;
+        }
+        slot->res = res;
+        slot->frame = maps_frame();
+        slot->result.tuple = kMapsUnresolved;
+        memcpy(slot->regs, block + 5 * 4, 8 * sizeof(float));
+        memcpy(slot->regs + 8, block + 73 * 4, 4 * sizeof(float));
+    }
+
+    // The slot stays the buffer's, so a buffer mapped often does not push the others out. No present is numbered 0.
+    void forget_vote_copy(ID3D11Resource* res) {
+        for (VoteCopy& v : vote_copy_) {
+            if (v.res == res) v.frame = 0;
+        }
+    }
+
+    void vote(bool instanced) {
+        maps_note_forward_draw();
+        const uint32_t frame = maps_frame();
+        for (VoteCopy& v : vote_copy_) {
+            if (v.res && v.res == ps_b0_ && v.frame == frame) {
+                maps_vote(vote_cache_, v.regs, v.result, instanced);
+                return;
+            }
+        }
+    }
+
     void reset_tracked_state() {
         reflect_track_reset(reflect_);
         cs_role_ = ps_role_ = vs_role_ = Role::None;
+        ps_votes_ = false;
         foliage_bound_ = false;
         vs_b0_ = ps_b0_ = ps_b1_ = nullptr;
         vs_b0_data_ = ps_b0_data_ = ps_b1_data_ = nullptr;
+        ps_b0_mapped_ = nullptr;
+        ps_b0_full_ = false;
         ps_b0_copied_ = false;
         pack_constants_bound_ = false;
         scene_depth_only_ = false;
@@ -372,18 +443,29 @@ private:
     };
     static constexpr UINT kUploads = 3;
 
+    struct VoteCopy {
+        ID3D11Resource* res;  // not owned: only compared against the bound PS b0
+        uint32_t frame;
+        MapsVoteResult result;
+        float regs[12];       // c5, c6, c73
+    };
+    static constexpr UINT kVoteCopies = 16;
+
     ID3D11DeviceContext* const real_;
     std::atomic<ULONG> refs_{1};
     Role cs_role_ = Role::None;
     Role ps_role_ = Role::None;
     Role vs_role_ = Role::None;
+    bool ps_votes_ = false;           // the bound pixel shader's draws vote on the map
     ID3D11Buffer* vs_b0_ = nullptr;   // not owned: only compared against Map targets
     ID3D11Buffer* ps_b0_ = nullptr;   // same
     ID3D11Buffer* ps_b1_ = nullptr;   // same
     void* vs_b0_data_ = nullptr;
     void* ps_b0_data_ = nullptr;
+    ID3D11Resource* ps_b0_mapped_ = nullptr;  // the resource ps_b0_data_ maps; not owned
     void* ps_b1_data_ = nullptr;
     bool vs_b0_full_ = false;
+    bool ps_b0_full_ = false;  // the whole block is wanted, not only the vote's registers
     bool ps_b0_copied_ = false;
     bool pack_constants_bound_ = false;
     bool after_effects_list_ = false;  // for the whole list, whatever state the game clears along the way
@@ -395,6 +477,9 @@ private:
     uint8_t ps_b1_latest_[48] = {};
     Upload upload_[kUploads] = {};
     UINT upload_count_ = 0;
+    VoteCopy vote_copy_[kVoteCopies] = {};
+    UINT vote_next_ = 0;
+    MapsVoteCache vote_cache_;
     ViewConstants view_;
     CasterList casters_;
     ReflectTrack reflect_;

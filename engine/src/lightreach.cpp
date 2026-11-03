@@ -35,6 +35,10 @@ ID3D11DeviceContext* g_owner;
 ID3D11Resource* g_cells_res;  // compared and mapped only within the list that uploaded them
 ID3D11Resource* g_ids_res;
 bool g_have_cells, g_have_ids, g_have_params;
+// The reach can change between two uploads of one list while a map's values ease, so the first upload of a sequence
+// fixes it for the other two: cells rebuilt for one reach must not meet radii stretched by another.
+bool g_seq_latched, g_seq_on;
+float g_seq_reach;
 uint32_t g_cells[kCells];
 uint32_t g_ids[kIdsRead];
 float g_lights[kLights * kLightFloats];
@@ -49,6 +53,16 @@ void start_for(ID3D11DeviceContext* ctx) {
     if (g_owner == ctx) return;
     g_owner = ctx;
     g_have_cells = g_have_ids = g_have_params = false;
+    g_seq_latched = false;
+}
+
+// A sequence never spans lists, and nothing kept from one list may be mapped in another.
+void forget(ID3D11DeviceContext* ctx) {
+    if (g_owner != ctx) return;
+    g_owner = nullptr;
+    g_cells_res = g_ids_res = nullptr;
+    g_have_cells = g_have_ids = g_have_params = false;
+    g_seq_latched = false;
 }
 
 float dot_row(const float* row, const float* v) {
@@ -154,9 +168,19 @@ bool lightreach_enabled() {
 }
 
 void lightreach_on_upload(ID3D11DeviceContext* ctx, int kind, ID3D11Resource* res, void* data) {
-    if (!ctx || !data || !lightreach_enabled()) return;
+    if (!ctx || !data) return;
     std::lock_guard<std::mutex> lock(g_lock);
     start_for(ctx);
+    if (!g_seq_latched) {
+        g_seq_reach = cfg_float("lightreach.reach", 1.8f);
+        g_seq_on = cfg_bool("lightreach.enabled", true) && g_seq_reach > 1.0f && engine_enabled();
+        g_seq_latched = true;
+    }
+    // Off for the sequence: whatever an earlier one left half done must not be finished with this one's buffers.
+    if (!g_seq_on) {
+        g_have_cells = g_have_ids = g_have_params = false;
+        return;
+    }
     if (kind == kCellsKind) {
         pointshadow_copy_mapping(g_cells, data, sizeof(g_cells));
         g_cells_res = res;
@@ -167,7 +191,7 @@ void lightreach_on_upload(ID3D11DeviceContext* ctx, int kind, ID3D11Resource* re
         g_have_ids = true;
     } else if (kind == kParamsKind) {
         pointshadow_copy_mapping(g_lights, data, sizeof(g_lights));
-        const float reach = cfg_float("lightreach.reach", 1.8f);
+        const float reach = g_seq_reach;
         const float max_radius = cfg_float("lightreach.max_radius", 18.0f);
         const float stretch_limit = cfg_float("lightreach.stretch_limit", 4.0f);
         const float full = cfg_float("lightreach.full_distance", 18.0f);
@@ -198,10 +222,21 @@ void lightreach_finish(ID3D11DeviceContext* ctx) {
     std::lock_guard<std::mutex> lock(g_lock);
     if (g_owner != ctx || !g_have_cells || !g_have_ids || !g_have_params) return;
     g_have_cells = g_have_ids = g_have_params = false;
+    g_seq_latched = false;
     static bool s_logged;
     const bool ok = rebuild(ctx);
     if (!s_logged && ok) {
         logf("lightreach: first cells rebuilt");
         s_logged = true;
     }
+}
+
+void lightreach_end_list(ID3D11DeviceContext* ctx) {
+    std::lock_guard<std::mutex> lock(g_lock);
+    forget(ctx);
+}
+
+void lightreach_on_present(ID3D11DeviceContext* immediate) {
+    std::lock_guard<std::mutex> lock(g_lock);
+    forget(immediate);
 }

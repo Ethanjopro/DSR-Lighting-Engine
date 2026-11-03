@@ -6,6 +6,8 @@
 #include "gtao.h"
 #include "hdr.h"
 #include "hlsl.h"
+#include "lightreach.h"
+#include "maps.h"
 #include "pack.h"
 #include "perf.h"
 #include "reflect.h"
@@ -106,18 +108,9 @@ struct VolInputs {
 };
 VolInputs g_vol;
 
-void read_settings() {
-    g_enabled = cfg_bool("engine.enabled", true) && !g_toggled_off;
-    g_gtao = g_enabled && cfg_bool("gtao.enabled", true);
-    g_composite = g_enabled && cfg_bool("composite.enabled", true);
-    g_pack = g_enabled && cfg_bool("lighting.enabled", true);
-    g_hide_ui = cfg_bool("engine.hide_ui", false);
-    g_volumetrics = g_enabled && cfg_bool("volumetrics.enabled", true);
-    g_ssgi = g_pack && cfg_bool("ssgi.enabled", true);  // only the engine's forward shaders read it
-    reflect_read_settings(g_pack);
-    sunshadow_read_settings();
-    casters_read_settings();
-    pointshadow_read_settings();
+// The values that only reach the GPU through the pack's constants. A map's values change them while they ease, so this
+// runs on every frame of an ease and must not touch any module's state.
+void read_pack_values() {
     const bool sun = g_pack && sunshadow_enabled();
     g_strength[0] = cfg_float("lighting.ao_on_points", 1.0f);
     // The game's own AO pass writes its value to every channel of the texture, so there is no contact shadow to read without ours.
@@ -145,11 +138,27 @@ void read_settings() {
     g_ambient[3] = cfg_float("lighting.ambient_debug", 0.0f);
 }
 
+void read_settings() {
+    g_enabled = cfg_bool("engine.enabled", true) && !g_toggled_off;
+    g_gtao = g_enabled && cfg_bool("gtao.enabled", true);
+    g_composite = g_enabled && cfg_bool("composite.enabled", true);
+    g_pack = g_enabled && cfg_bool("lighting.enabled", true);
+    g_hide_ui = cfg_bool("engine.hide_ui", false);
+    g_volumetrics = g_enabled && cfg_bool("volumetrics.enabled", true);
+    g_ssgi = g_pack && cfg_bool("ssgi.enabled", true);  // only the engine's forward shaders read it
+    reflect_read_settings(g_pack);
+    sunshadow_read_settings();
+    casters_read_settings();
+    pointshadow_read_settings();  // resets its failure state, so never once a frame
+    read_pack_values();
+}
+
 }  // namespace
 
 void engine_init(ID3D11Device* device) {
     g_device = device;
     config_load();
+    maps_init();
     sunshadow_init(device);
     casters_init(device);
     pointshadow_init(device);
@@ -201,7 +210,27 @@ static void poll_toggle_key() {
 }
 
 void engine_on_present(ID3D11DeviceContext* immediate) {
-    if (config_poll()) read_settings();
+    // This frame's camera, read once before anything below re-arms the want, and used by everything after. The want is
+    // read under its lock, where the publisher clears it together with the copy.
+    bool taa_fresh;
+    float camera[3];
+    {
+        std::lock_guard<std::mutex> lock(g_camera_lock);
+        taa_fresh = !g_want_camera.load(std::memory_order_relaxed);
+        memcpy(camera, g_camera, sizeof(camera));
+    }
+    // The maps take their sun directions from the voting draws' own constants, not from the forward block.
+    MapsPresent frame;
+    frame.taa_fresh = taa_fresh;
+    memcpy(frame.camera, camera, sizeof(frame.camera));
+    const bool reloaded = config_poll();
+    const bool changed = maps_on_present(frame, reloaded);
+    if (reloaded) {
+        read_settings();
+    } else if (changed) {
+        read_pack_values();
+    }
+    lightreach_on_present(immediate);
     poll_toggle_key();
     hlsl_poll();
     gtao_on_present();
@@ -215,18 +244,11 @@ void engine_on_present(ID3D11DeviceContext* immediate) {
     volumetrics_on_present();
     casters_on_present(immediate);
     pointshadow_on_present();
-    g_taa_fresh.store(!g_want_camera.load(std::memory_order_relaxed), std::memory_order_relaxed);
+    g_taa_fresh.store(taa_fresh, std::memory_order_relaxed);
     g_want_vol_inputs.store(true, std::memory_order_relaxed);
     g_vol_ran.store(false, std::memory_order_relaxed);
     g_want_forward.store(true, std::memory_order_relaxed);
-    {
-        float camera[3];
-        {
-            std::lock_guard<std::mutex> lock(g_camera_lock);
-            memcpy(camera, g_camera, sizeof(camera));
-        }
-        reflect_on_present(camera, !g_want_camera.load(std::memory_order_relaxed));
-    }
+    reflect_on_present(camera, taa_fresh);
     g_want_camera.store(true, std::memory_order_relaxed);
 }
 
@@ -354,10 +376,13 @@ bool engine_wants_forward_constants() {
 }
 
 void engine_publish_forward_constants(const void* regs) {
-    if (!g_want_forward.exchange(false, std::memory_order_relaxed)) return;
+    if (!g_want_forward.load(std::memory_order_relaxed)) return;
     std::lock_guard<std::mutex> lock(g_forward_lock);
+    // The want clears with the copy, under the lock: the present takes a block as this frame's only once it is all there.
+    if (!g_want_forward.load(std::memory_order_relaxed)) return;
     memcpy(g_forward.regs, regs, sizeof(g_forward.regs));
     g_forward.valid = true;
+    g_want_forward.store(false, std::memory_order_relaxed);
 }
 
 void engine_note_key_light(const float* c6) {
@@ -385,9 +410,12 @@ bool engine_wants_camera() {
 }
 
 void engine_publish_camera(const float* xyz) {
-    if (!g_want_camera.exchange(false, std::memory_order_relaxed)) return;
+    if (!g_want_camera.load(std::memory_order_relaxed)) return;
     std::lock_guard<std::mutex> lock(g_camera_lock);
+    // As with the forward block.
+    if (!g_want_camera.load(std::memory_order_relaxed)) return;
     memcpy(g_camera, xyz, sizeof(g_camera));
+    g_want_camera.store(false, std::memory_order_relaxed);
 }
 
 void* engine_scene_depth_resource() {
@@ -440,11 +468,13 @@ void engine_reflect_on_copy(ID3D11DeviceContext* ctx, ID3D11Resource* src) {
         view = g_vol.view;
     }
     float camera[3];
+    bool fresh;
     {
         std::lock_guard<std::mutex> lock(g_camera_lock);
         memcpy(camera, g_camera, sizeof(camera));
+        fresh = !g_want_camera.load(std::memory_order_relaxed);
     }
-    reflect_on_scene_copy(ctx, depth, view, camera, !g_want_camera.load(std::memory_order_relaxed));
+    reflect_on_scene_copy(ctx, depth, view, camera, fresh);
     if (depth) depth->Release();
 }
 

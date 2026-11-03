@@ -20,6 +20,7 @@ data/vanilla/
 engine/obj/
 engine/bin/
 engine/data/shaders.pak
+engine/data/maps_detect.txt
 
 # Release builds (tools/package.py)
 release/build/
