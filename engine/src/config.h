@@ -7,6 +7,11 @@
 #include <string>
 #include <vector>
 
+// The level [engine] quality = 0 stands for, 1 low to 3 high. Call before config_load.
+void config_set_auto_quality(int level);
+// The level in force, 1 to 3.
+int config_quality();
+
 void config_load();
 // Call once per frame. Returns true when either file changed and both were reloaded this frame.
 bool config_poll();
@@ -19,7 +24,8 @@ inline bool cfg_bool(const char* key, bool fallback) { return cfg_int(key, fallb
 bool config_map_key_allowed(const char* key);
 // A map's own value: dsrle.ini's [map.<map>] first, then maps.ini's. False when neither sets it.
 bool config_map_value(const char* map, const char* key, float* out);
-// What dsrle.ini says, without any map's value over it. False when the file does not have the key.
+// What dsrle.ini says, or the built-in defaults where it says nothing, after the quality level's limits and without any
+// map's value over it. False when neither has the key.
 bool config_base_value(const char* key, float* out);
 // Every allowed key that some [map.*] section of either file names, sorted.
 std::vector<std::string> config_map_keys();

@@ -93,17 +93,18 @@ public:
         real_->VSSetShader(shader, instances, count);
     }
     void STDMETHODCALLTYPE OMSetRenderTargets(UINT count, ID3D11RenderTargetView* const* views, ID3D11DepthStencilView* depth) override {
-        // The depth prepass is the only pass that binds the scene depth with no colour target.
-        scene_depth_only_ = false;
-        if (depth && (sunshadow_enabled() || pointshadow_enabled()) && engine_enabled()) {
+        // The depth prepass is the only pass that binds the scene depth with no colour target. With one, it is the scene's
+        // own view; the water's mirrored pass draws the same shaders into targets of its own.
+        scene_depth_only_ = scene_colour_ = false;
+        if (depth) {
             bool any_colour = false;
             for (UINT i = 0; i < count; i++) any_colour = any_colour || views[i];
-            if (!any_colour) {
-                ID3D11Resource* res = nullptr;
-                depth->GetResource(&res);
-                scene_depth_only_ = res == engine_scene_depth_resource();
-                if (res) res->Release();
-            }
+            ID3D11Resource* res = nullptr;
+            depth->GetResource(&res);
+            const bool scene = res && res == engine_scene_depth_resource();
+            if (res) res->Release();
+            scene_colour_ = scene && any_colour;
+            scene_depth_only_ = scene && !any_colour && (sunshadow_enabled() || pointshadow_enabled()) && engine_enabled();
         }
         reflect_on_targets(reflect_, real_, count, views, depth);
         real_->OMSetRenderTargets(count, views, depth);
@@ -120,7 +121,7 @@ public:
         reflect_on_draw(reflect_, real_, view_);
         if (trace_tracking()) trace_draw(real_, "D", count, start, 0, 0, 0);
         if (ps_role_ == Role::MenuUi && engine_hide_ui()) return;
-        if (ps_role_ == Role::ResolveTaa && ps_b0_copied_) {
+        if (ps_role_ == Role::ResolveTaa && ps_b0_copied_ && ps_b0_copy_res_ == ps_b0_) {
             engine_publish_camera(ps_b0_copy_[78]);
             ps_b0_copied_ = false;
         }
@@ -135,14 +136,18 @@ public:
         reflect_on_draw(reflect_, real_, view_);
         if (trace_tracking()) trace_draw(real_, "DI", count, start, base, 1, 0);
         if (ps_role_ == Role::MenuUi && engine_hide_ui()) return;
-        if (ps_role_ == Role::ForwardLit && ps_b0_copied_) {
-            engine_note_key_light(ps_b0_copy_[6]);
-            engine_publish_forward_constants(ps_b0_copy_);
-            ps_b0_copied_ = false;
+        // Every hemisphere-lit shader, forward lit or light-mapped: they fill the same block, and a forest of light-mapped
+        // pieces has no other draw to take the frame's constants from.
+        if (ps_votes_) {
+            engine_note_lit_draw();
+            if (ps_b0_copied_ && ps_b0_copy_res_ == ps_b0_) {
+                engine_note_key_light(ps_b0_copy_[6]);
+                if (scene_colour_) engine_publish_forward_constants(ps_b0_copy_);
+                ps_b0_copied_ = false;
+            }
+            if (maps_wants_votes()) vote(false);
+            if (scene_colour_ && engine_wants_volumetrics_inputs()) engine_offer_volumetrics_inputs(real_);
         }
-        // Every voting shader, not only the forward lit ones above: light-mapped pieces carry their own sun direction.
-        if (ps_votes_ && maps_wants_votes()) vote(false);
-        if (ps_role_ == Role::ForwardLit && engine_wants_volumetrics_inputs()) engine_offer_volumetrics_inputs(real_);
         if (scene_depth_only_) record_caster(count, start, base, 1, 0, false);
         real_->DrawIndexed(count, start, base);
     }
@@ -195,18 +200,25 @@ public:
             // Whatever is written now is not in this buffer's vote copy. Only a captured Unmap below takes a new one, so a
             // buffer mapped while another is bound stops voting instead of voting with what it held before.
             forget_vote_copy(res);
+            if (res == ps_b0_copy_res_) ps_b0_copied_ = false;
             if (type == D3D11_MAP_WRITE_DISCARD) {
+                // The game fills a block and then binds it, so at the first draw of a list, or after a pass with its own
+                // buffer (the sprites ahead of the TAA resolve), the buffer bound here is not the one being filled.
+                const bool ps_block = res == ps_b0_ || remembered_ps_block(res);
                 // These slots also hold smaller blocks (the menu's PS b0 is 80 bytes), so check before keeping
                 // the pointer: Unmap copies a fixed size out of it.
                 if (res == vs_b0_) {
                     const UINT width = byte_width(res);
                     if (width >= sizeof(view_.vp)) vs_b0_data_ = mapped->pData;
                     vs_b0_full_ = width >= kCasterVsBytes;
-                } else if (res == ps_b0_ && (engine_wants_forward_constants() || engine_wants_camera())) {
-                    if (byte_width(res) >= sizeof(ps_b0_copy_)) keep_ps_b0(res, mapped->pData, true);
+                } else if (ps_block && (engine_wants_forward_constants() || engine_wants_camera())) {
+                    if (byte_width(res) >= sizeof(ps_b0_copy_)) {
+                        keep_ps_b0(res, mapped->pData, true);
+                        note_ps_block(res);
+                    }
                 } else if (res == ps_b1_ && scene_depth_only_) {
                     if (byte_width(res) >= sizeof(ps_b1_latest_)) ps_b1_data_ = mapped->pData;
-                } else if (res != ps_b0_ && res != ps_b1_ && (pointshadow_enabled() || lightreach_enabled()) && upload_count_ < kUploads) {
+                } else if (!ps_block && res != ps_b1_ && (pointshadow_enabled() || lightreach_enabled()) && upload_count_ < kUploads) {
                     // The game's light buffers: copied at Unmap, when the mapping holds what was written. They take
                     // effect when this list executes.
                     if (const int kind = pointshadow_upload_kind(res)) {
@@ -215,8 +227,9 @@ public:
                 }
                 // The vote needs only registers 5, 6 and 73, from every block of the frame a voting draw may use, and
                 // leaves the branches above as they were.
-                if (res == ps_b0_ && ps_b0_mapped_ != res && maps_wants_votes() && byte_width(res) >= sizeof(ps_b0_copy_)) {
+                if (ps_block && ps_b0_mapped_ != res && maps_wants_votes() && byte_width(res) >= sizeof(ps_b0_copy_)) {
                     keep_ps_b0(res, mapped->pData, false);
+                    note_ps_block(res);
                 }
             }
             if (trace_tracking()) trace_map(real_, res, sub, type, mapped);
@@ -253,11 +266,12 @@ public:
         // The resource the pointer came from, not the one bound now: a pointer kept from a buffer rebound before its
         // Unmap would otherwise be read at another buffer's.
         if (ps_b0_data_ && res == ps_b0_mapped_) {
-            // Copied now, offered at the draw: only then is it known which shader family this block belongs to. A block
-            // rebound before its Unmap is not the next draw's, so as before it is not offered.
-            if (ps_b0_full_ && res == ps_b0_) {
+            // Copied now, offered at the draw: only then is it known which shader family this block belongs to, and
+            // whether this is the buffer the draw has bound.
+            if (ps_b0_full_) {
                 memcpy(ps_b0_copy_, ps_b0_data_, sizeof(ps_b0_copy_));
                 ps_b0_copied_ = true;
+                ps_b0_copy_res_ = res;
             }
             if (maps_wants_votes()) keep_vote_copy(res, static_cast<const float*>(ps_b0_data_));
             ps_b0_data_ = nullptr;
@@ -334,10 +348,41 @@ public:
     }
 
 private:
+    // 0 for anything but a buffer: a block known only by its address may have gone, and the address may be a texture's now.
     static UINT byte_width(ID3D11Resource* res) {
+        D3D11_RESOURCE_DIMENSION dimension = D3D11_RESOURCE_DIMENSION_UNKNOWN;
+        res->GetType(&dimension);
+        if (dimension != D3D11_RESOURCE_DIMENSION_BUFFER) return 0;
         D3D11_BUFFER_DESC d;
         static_cast<ID3D11Buffer*>(res)->GetDesc(&d);
         return d.ByteWidth;
+    }
+
+    bool known_ps_block(ID3D11Resource* res) const {
+        for (ID3D11Resource* b : ps_blocks_) {
+            if (b == res) return true;
+        }
+        return false;
+    }
+
+    // A block being filled before it is bound. The address is all that was kept of it, and the game may have freed the
+    // buffer since and made another there: so never the buffer bound as something else, and only a constant buffer the
+    // size of a block. A light buffer, the prepass's block or a texture at that address then goes its own way above.
+    bool remembered_ps_block(ID3D11Resource* res) const {
+        if (res == ps_b1_ || res == vs_b0_ || !known_ps_block(res)) return false;
+        D3D11_RESOURCE_DIMENSION dimension = D3D11_RESOURCE_DIMENSION_UNKNOWN;
+        res->GetType(&dimension);
+        if (dimension != D3D11_RESOURCE_DIMENSION_BUFFER) return false;
+        D3D11_BUFFER_DESC d;
+        static_cast<ID3D11Buffer*>(res)->GetDesc(&d);
+        return (d.BindFlags & D3D11_BIND_CONSTANT_BUFFER) && d.ByteWidth >= sizeof(ps_b0_copy_);
+    }
+
+    // Kept across lists: a list starts with nothing bound, and its first draw's block is filled before it is.
+    void note_ps_block(ID3D11Resource* res) {
+        if (known_ps_block(res)) return;
+        ps_blocks_[ps_block_next_] = res;
+        ps_block_next_ = (ps_block_next_ + 1) % kPsBlocks;
     }
 
     void keep_ps_b0(ID3D11Resource* res, void* data, bool full) {
@@ -376,6 +421,9 @@ private:
         const uint32_t frame = maps_frame();
         for (VoteCopy& v : vote_copy_) {
             if (v.res && v.res == ps_b0_ && v.frame == frame) {
+                // The whole block is copied only until the frame's constants are published; the sun's colour is wanted
+                // from every draw.
+                engine_note_key_light(v.regs + 4);
                 maps_vote(vote_cache_, v.regs, v.result, instanced);
                 return;
             }
@@ -390,10 +438,12 @@ private:
         vs_b0_ = ps_b0_ = ps_b1_ = nullptr;
         vs_b0_data_ = ps_b0_data_ = ps_b1_data_ = nullptr;
         ps_b0_mapped_ = nullptr;
+        ps_b0_copy_res_ = nullptr;
         ps_b0_full_ = false;
         ps_b0_copied_ = false;
         pack_constants_bound_ = false;
         scene_depth_only_ = false;
+        scene_colour_ = false;
         vs_b0_latest_valid_ = false;
         upload_count_ = 0;
     }
@@ -463,6 +513,10 @@ private:
     void* vs_b0_data_ = nullptr;
     void* ps_b0_data_ = nullptr;
     ID3D11Resource* ps_b0_mapped_ = nullptr;  // the resource ps_b0_data_ maps; not owned
+    ID3D11Resource* ps_b0_copy_res_ = nullptr;  // the buffer ps_b0_copy_ was taken from; only compared
+    static constexpr UINT kPsBlocks = 4;
+    ID3D11Resource* ps_blocks_[kPsBlocks] = {};  // buffers seen holding a whole block at PS slot 0; only compared
+    UINT ps_block_next_ = 0;
     void* ps_b1_data_ = nullptr;
     bool vs_b0_full_ = false;
     bool ps_b0_full_ = false;  // the whole block is wanted, not only the vote's registers
@@ -471,6 +525,7 @@ private:
     bool after_effects_list_ = false;  // for the whole list, whatever state the game clears along the way
     bool foliage_bound_ = false;
     bool scene_depth_only_ = false;
+    bool scene_colour_ = false;       // the scene's depth with a colour target: the main view's lit passes
     bool vs_b0_latest_valid_ = false;
     float ps_b0_copy_[kForwardRegs][4];
     uint8_t vs_b0_latest_[kCasterVsBytes];

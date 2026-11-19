@@ -151,7 +151,8 @@ void maps_blend_retarget(MapsBlend& blend, const std::string& map, bool snap);
 bool maps_blend_step(MapsBlend& blend, double dt, double seconds);
 
 // Whether draws with this pixel shader vote: FRPG_Phn_ or FRPG_Gst_ with HemEnv in the name. A wider family than
-// Role::ForwardLit's Csd_HemEnv, which alone publishes the forward constants: light-mapped pieces carry the same block.
+// Role::ForwardLit's Csd_HemEnv: light-mapped pieces carry the same block, and the frame's forward constants come from
+// any of them.
 bool maps_shader_votes(const char* name);
 
 // The engine's side. Render thread, apart from the vote calls, which the recording threads make.
@@ -162,6 +163,10 @@ struct MapsPresent {
 };
 // Once per present, right after config_poll. Returns true when read_pack_values must run.
 bool maps_on_present(const MapsPresent& present, bool reloaded);
+
+// The sun direction of the group most of the last frame's draws named, as the table has it. False when detection is
+// off or no draw's direction was in a group. Render thread.
+bool maps_sun_direction(float out[3]);
 
 // Whether voting draws should vote: the table is loaded, its DrawParam is the installed one, and [maps] enabled.
 bool maps_wants_votes();

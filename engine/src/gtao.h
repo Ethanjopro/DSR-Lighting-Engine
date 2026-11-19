@@ -8,5 +8,8 @@ void gtao_init(ID3D11Device* device);
 void gtao_on_present();
 // At the first SSAO dispatch: remember the scene depth SRV the game binds there.
 void gtao_note_depth(ID3D11DeviceContext* ctx);
+// Whether gtao_run can take this frame's chain. The game's first two dispatches are skipped only then: its last one would
+// otherwise read what neither wrote.
+bool gtao_usable(const ViewConstants& view);
 // At the final upsample dispatch. Returns false to let the game's dispatch run instead.
 bool gtao_run(ID3D11DeviceContext* ctx, const ViewConstants& view);

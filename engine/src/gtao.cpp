@@ -32,6 +32,8 @@ ID3D11Texture2D* g_work_tex[2];
 ID3D11ShaderResourceView* g_work_srv[2];
 ID3D11UnorderedAccessView* g_work_uav[2];
 
+std::atomic<bool> g_targets_failed{false};  // the game's own chain runs from then on, all three dispatches of it
+
 // The game's depth SRV, read at the SsaoPrepare dispatch of the same list.
 ID3D11ShaderResourceView* g_scene_depth;
 std::mutex g_scene_depth_lock;
@@ -150,6 +152,11 @@ void gtao_note_depth(ID3D11DeviceContext* ctx) {
     g_scene_depth = srv;  // takes the reference from the getter
 }
 
+bool gtao_usable(const ViewConstants& view) {
+    return view.valid && !g_targets_failed && hlsl_cs("gtao.hlsl", "depth_main") && hlsl_cs("gtao.hlsl", "ao_main") &&
+           hlsl_cs("gtao.hlsl", "denoise_main");
+}
+
 bool gtao_run(ID3D11DeviceContext* ctx, const ViewConstants& view) {
     if (!view.valid) return false;
     ID3D11UnorderedAccessView* out = nullptr;
@@ -171,7 +178,10 @@ bool gtao_run(ID3D11DeviceContext* ctx, const ViewConstants& view) {
     auto* cs_main = hlsl_cs("gtao.hlsl", "ao_main");
     auto* cs_denoise = hlsl_cs("gtao.hlsl", "denoise_main");
     bool ready = depth && cs_depth && cs_main && cs_denoise;
-    if (ready && (g_width != out_desc.Width || g_height != out_desc.Height)) ready = create_targets(out_desc.Width, out_desc.Height);
+    if (ready && (g_width != out_desc.Width || g_height != out_desc.Height)) {
+        ready = create_targets(out_desc.Width, out_desc.Height);
+        if (!ready && !g_targets_failed.exchange(true)) logf("gtao: targets of %ux%u failed; the game's own ambient occlusion runs instead", out_desc.Width, out_desc.Height);
+    }
     if (!ready) {
         if (depth) depth->Release();
         out->Release();

@@ -177,6 +177,8 @@ void ao_main(uint3 id : SV_DispatchThreadID) {
         float horizon[2];
         for (int side = 0; side < 2; side++) {
             float side_sign = side == 0 ? 1.0f : -1.0f;
+            // The horizon of the bare surface on this side: where a sample with no hold ends up, and the least a slice returns.
+            const float low = cos(n_angle + side_sign * (PI * 0.5f));
             float best = -1.0f;
             for (int s = 0; s < g_steps; s++) {
                 // Quadratic spacing favours close occluders, which is where contact detail lives.
@@ -194,12 +196,10 @@ void ao_main(uint3 id : SV_DispatchThreadID) {
                 // Distant samples and thin foreground both lose their hold on the horizon.
                 float weight = saturate((radius - len) * falloff_mul);
                 if (d.z < -g_thickness * radius) weight *= saturate(1.0f + (d.z + g_thickness * radius) / max(radius, 1e-3f));
-                float low = sign_n * 0.0f + cos(n_angle + side_sign * (PI * 0.5f));
                 cos_h = lerp(low, cos_h, weight);
                 best = max(best, cos_h);
             }
-            float low_limit = cos(n_angle + side_sign * (PI * 0.5f));
-            horizon[side] = acos(clamp(max(best, low_limit), -1.0f, 1.0f));
+            horizon[side] = acos(clamp(max(best, low), -1.0f, 1.0f));
         }
         // Clamp horizons to the hemisphere about the projected normal and integrate.
         float h1 = n_angle + max(-horizon[1] - n_angle, -PI * 0.5f);
@@ -241,6 +241,12 @@ void denoise_main(uint3 id : SV_DispatchThreadID) {
     float z = t_z.Load(int3(px, 0));
     float4 center = t_in.Load(int3(px, 0));
     float tolerance = max(z * 0.015f, 0.02f);
+    // Sky, and ground far past the fade: every neighbour within the tolerance, and theirs in the pass before, holds the same
+    // constant ao_main wrote there, so the average is that constant.
+    if (z * 0.97f >= g_fade_end) {
+        u_out[px] = center;
+        return;
+    }
     float4 sum = center * 0.25f;
     float weights = 0.25f;
     for (int y = -2; y <= 2; y++) {

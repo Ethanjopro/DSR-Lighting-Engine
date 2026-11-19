@@ -25,6 +25,43 @@ std::shared_mutex g_values_lock;  // the recording threads read settings while t
 FILETIME g_stamp;
 FILETIME g_maps_stamp;
 int g_poll;
+bool g_loaded;
+int g_auto_quality = 3;
+int g_quality = 3;
+
+// engine/data/dsrle.ini as it was when the DLL was built, without its [dev] section; build.ps1 writes it out. A key the
+// file in the game folder does not have, an older version's or a trimmed one, takes its value from here, so the look a
+// version ships with does not depend on the file being that version's.
+#ifdef DSRLE_DEFAULT_INI
+const char kDefaultIni[] =
+#include "default_ini.inc"
+    ;
+#else
+const char kDefaultIni[] = "";
+#endif
+
+// What a quality level allows at most for the settings that cost video memory or frame time: [engine] quality, 1 low,
+// 2 medium, 3 high (no limit), 0 for the level engine.cpp picks from the adapter's memory. A limit only ever lowers what
+// dsrle.ini asks for. floor marks the one setting where higher is cheaper.
+struct Cap {
+    const char* key;
+    float low, medium;
+    bool floor;
+};
+constexpr float kNoCap = 1e9f;
+const Cap kCaps[] = {
+    {"sunshadow.cascade_size", 2048.0f, 2048.0f, false},     // the atlas is 2 x 2 of these, 32 bits a texel
+    {"sunshadow.draws_per_cascade", 200.0f, kNoCap, false},
+    {"pointshadow.face_size", 512.0f, 512.0f, false},        // 12 faces a light, 32 bits a texel
+    {"pointshadow.max_lights", 4.0f, kNoCap, false},
+    {"pointshadow.dynamic_draws", 200.0f, kNoCap, false},
+    {"gtao.slices", 2.0f, 3.0f, false},
+    {"gtao.steps", 4.0f, 5.0f, false},
+    {"ssgi.enabled", 0.0f, kNoCap, false},
+    {"ssgi.downscale", 4.0f, 4.0f, true},
+    {"reflect.enabled", 0.0f, kNoCap, false},
+    {"reflect.steps", 32.0f, 48.0f, false},
+};
 
 // Debug views and list switches are left out: easing them would pass through values they do not have.
 const char* const kMapKeys[] = {
@@ -68,14 +105,17 @@ void log_once(const char* file, const std::string& key, const char* why) {
     if (s_logged.insert(std::string(file) + ":" + key).second) logf("config: %s: %s %s, ignored", file, key.c_str(), why);
 }
 
-// Keys under [map.<id>] go to maps, the rest to values, or nowhere when values is null. False when the file is missing.
-bool parse(const std::wstring& path, Values* values, MapValues* maps, const char* file) {
-    FILE* f = nullptr;
-    _wfopen_s(&f, path.c_str(), L"r");
-    if (!f) return false;
+// Keys under [map.<id>] go to maps, the rest to values, or nowhere when values is null.
+void parse_text(const char* text, size_t size, Values* values, MapValues* maps, const char* file) {
     std::string section;
     char line[512];
-    while (fgets(line, sizeof(line), f)) {
+    for (size_t at = 0; at < size;) {
+        size_t stop = at;
+        while (stop < size && text[stop] != '\n') stop++;
+        const size_t n = std::min(stop - at, sizeof(line) - 1);
+        memcpy(line, text + at, n);
+        line[n] = 0;
+        at = stop + 1;
         char* s = trim(line);
         if (!*s || *s == ';' || *s == '#') continue;
         if (*s == '[') {
@@ -110,8 +150,45 @@ bool parse(const std::wstring& path, Values* values, MapValues* maps, const char
             log_once(file, key, "is outside a [map.*] section");
         }
     }
+}
+
+// False when the file is missing.
+bool parse(const std::wstring& path, Values* values, MapValues* maps, const char* file) {
+    FILE* f = nullptr;
+    _wfopen_s(&f, path.c_str(), L"rb");
+    if (!f) return false;
+    std::string text;
+    char chunk[4096];
+    for (size_t n; (n = fread(chunk, 1, sizeof(chunk), f)) > 0;) text.append(chunk, n);
     fclose(f);
+    parse_text(text.data(), text.size(), values, maps, file);
     return true;
+}
+
+const Values& defaults() {
+    static const Values values = [] {
+        Values v;
+        MapValues unused;
+        parse_text(kDefaultIni, sizeof(kDefaultIni) - 1, &v, &unused, "the built-in defaults");
+        return v;
+    }();
+    return values;
+}
+
+// Lowers what the file asks for to what the level allows. A key the file leaves to its call site's fallback is set
+// outright: every fallback is the high level's value.
+int apply_quality(Values& base) {
+    auto asked = base.find("engine.quality");
+    int level = asked == base.end() ? 0 : static_cast<int>(asked->second);
+    if (level < 1 || level > 3) level = g_auto_quality;
+    if (level >= 3) return 3;
+    for (const Cap& cap : kCaps) {
+        const float limit = level == 1 ? cap.low : cap.medium;
+        if (limit == kNoCap) continue;
+        auto it = base.find(cap.key);
+        if (it == base.end() || (cap.floor ? it->second < limit : it->second > limit)) base[cap.key] = limit;
+    }
+    return level;
 }
 
 std::vector<std::string> keys_of(const MapValues& a, const MapValues& b) {
@@ -145,24 +222,45 @@ bool find(const MapValues& maps, const char* map, const char* key, float* out) {
 }  // namespace
 
 void config_load() {
-    file_stamp(ini_path(), &g_stamp);
+    FILETIME stamp{};
+    const bool have_stamp = file_stamp(ini_path(), &stamp);
     if (!file_stamp(maps_path(), &g_maps_stamp)) g_maps_stamp = FILETIME{};
-    Values base;
+    Values file, base = defaults();
     MapValues user, shipped;
-    const bool have_ini = parse(ini_path(), &base, &user, "dsrle.ini");
+    const bool have_ini = parse(ini_path(), &file, &user, "dsrle.ini");
+    // The stamp of a file that is there but would not open, while an editor saves it, is not taken: the next poll
+    // sees it as changed and reads it then.
+    if (have_ini || !have_stamp) g_stamp = stamp;
+    for (const auto& kv : file) base[kv.first] = kv.second;
+    const int quality = apply_quality(base);
+    static bool s_said_unread;
     if (have_ini) {
-        logf("config: %zu values loaded", base.size());
-    } else {
-        logf("config: dsrle.ini not found, using defaults");
+        logf("config: %zu values in dsrle.ini over %zu built in", file.size(), defaults().size());
+        s_said_unread = false;
+    } else if (!s_said_unread) {
+        logf(g_loaded ? "config: dsrle.ini could not be read, so the values from before stay"
+                      : "config: dsrle.ini could not be read, using the built-in defaults");
+        s_said_unread = true;
+    }
+    if (have_ini || !g_loaded) {
+        auto asked = file.find("engine.quality");
+        const bool set = asked != file.end() && asked->second >= 1.0f && asked->second <= 3.0f;
+        static const char* const kNames[] = {"", "low", "medium", "high"};
+        static int s_logged;
+        if (quality * 2 + set != s_logged) logf("config: quality %s%s", kNames[quality], set ? "" : ", picked from the video memory");
+        s_logged = quality * 2 + set;
     }
     parse(maps_path(), nullptr, &shipped, "maps.ini");
     logf("config: per-map values for %zu maps in maps.ini and %zu in dsrle.ini", shipped.size(), have_ini ? user.size() : g_user.size());
     std::unique_lock<std::shared_mutex> lock(g_values_lock);
     const std::vector<std::string> old_keys = keys_of(g_user, g_shipped);
-    if (have_ini) {
+    // A file that cannot be opened for a moment, while an editor saves it, leaves what was read before in force.
+    if (have_ini || !g_loaded) {
         g_base.swap(base);
         g_user.swap(user);
+        g_quality = quality;
     }
+    g_loaded = true;
     g_shipped.swap(shipped);
     // A key no section names any more is still set until maps.cpp, told of the reload, writes it back to dsrle.ini's
     // value. Anything that was never a map's key has no business here.
@@ -198,6 +296,15 @@ int cfg_int(const char* key, int fallback) {
     std::shared_lock<std::shared_mutex> lock(g_values_lock);
     auto it = g_values.find(key);
     return it == g_values.end() ? fallback : static_cast<int>(it->second);
+}
+
+void config_set_auto_quality(int level) {
+    g_auto_quality = std::clamp(level, 1, 3);
+}
+
+int config_quality() {
+    std::shared_lock<std::shared_mutex> lock(g_values_lock);
+    return g_quality;
 }
 
 bool config_map_key_allowed(const char* key) {

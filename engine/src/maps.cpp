@@ -683,6 +683,7 @@ MapsState g_state;
 MapsBlend g_blend;
 std::vector<uint32_t> g_frame_votes;
 std::vector<uint32_t> g_frame_groups;
+int g_frame_group = -1;  // the last frame's most named group, or -1
 LARGE_INTEGER g_freq, g_last;
 
 DWORD WINAPI hash_thread(void*) {
@@ -943,6 +944,12 @@ void maps_vote(MapsVoteCache& cache, const float* regs, MapsVoteResult& result, 
     if (result.tuple != kMissUnrecorded) g_misses[-1 - result.tuple].draws.fetch_add(1, std::memory_order_relaxed);
 }
 
+bool maps_sun_direction(float out[3]) {
+    if (g_frame_group < 0) return false;
+    memcpy(out, g_table.groups[static_cast<size_t>(g_frame_group)].dirs[0].data(), 3 * sizeof(float));
+    return true;
+}
+
 bool maps_on_present(const MapsPresent& p, bool reloaded) {
     // Copies stamped from here on belong to the next frame.
     const uint32_t frame = g_frame.fetch_add(1, std::memory_order_relaxed);
@@ -999,6 +1006,7 @@ bool maps_on_present(const MapsPresent& p, bool reloaded) {
         d.group = -2;
         d.why = "off";
     }
+    g_frame_group = d.group;
 
     // A reload eases nothing: an edit shows at once. A key no section names any more is written back to dsrle.ini's value
     // with the rest before it is dropped.

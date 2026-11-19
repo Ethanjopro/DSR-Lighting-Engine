@@ -885,6 +885,15 @@ float3 dsrle_ss_Rate(float pcf, float3 N, float4 eyeVec)
 	return pow(abs(rate), gFC_DebugPointLightParams.z);
 }
 
+// Whether a PCF value can change that composition. Past the shadow's range the fade is 0, and on a face turned far enough
+// from the light the slope term alone saturates, so there the lookups are skipped and the result is the same to the bit.
+bool dsrle_ss_Matters(float3 N, float4 eyeVec)
+{
+	const float slope = saturate((dot(gFC_ShadowLightDir.xyz, N) + gFC_ShadowMapParam.x) * gFC_ShadowMapParam.w);
+	const float fade = saturate((gFC_ShadowMapParam.y - eyeVec.w) * gFC_ShadowMapParam.z);
+	return fade > 0.0f && slope < 1.0f;
+}
+
 // Csd: cascade selection as vanilla, plus the cross-fade into the next cascade.
 float3 dsrle_ss_Csd(float4 worldPos, float rot, float3 N, float4 eyeVec)
 {
@@ -894,19 +903,23 @@ float3 dsrle_ss_Csd(float4 worldPos, float rot, float3 N, float4 eyeVec)
 	const float viewZ = worldPos.w;
 	const float4 past = float4(gFC_ShadowStartDist < viewZ);
 	const int slice = (int)(dot(past, float4(1.0f, 1.0f, 1.0f, 1.0f)) - 1.0f);
-	float pcf = dsrle_ss_Lookup(mul(wp, gFC_ShadowMapMtxArray[slice]), gFC_ShadowMapClamp[slice], ax, ay, margin);
-#ifndef DSRLE_SHADOW_SOFT_NO_XFADE
-	const float4 one = float4(slice == int4(0, 1, 2, 3));
-	const float zStart = dot(gFC_ShadowStartDist, one);
-	const float zEnd = dot(float4(gFC_ShadowStartDist.yzw, 0.0f), one);
-	const float band = max((zEnd - zStart) * DSRLE_SHADOW_SOFT_XFADE, 1e-4f);
-	const float t = (slice < 3) ? saturate((viewZ - (zEnd - band)) / band) : 0.0f;
-	[branch] if (t > 0.0f)
+	float pcf = 0.0f;
+	[branch] if (dsrle_ss_Matters(N, eyeVec))
 	{
-		const int next = min(slice + 1, 3);
-		pcf = lerp(pcf, dsrle_ss_Lookup(mul(wp, gFC_ShadowMapMtxArray[next]), gFC_ShadowMapClamp[next], ax, ay, margin), t);
-	}
+		pcf = dsrle_ss_Lookup(mul(wp, gFC_ShadowMapMtxArray[slice]), gFC_ShadowMapClamp[slice], ax, ay, margin);
+#ifndef DSRLE_SHADOW_SOFT_NO_XFADE
+		const float4 one = float4(slice == int4(0, 1, 2, 3));
+		const float zStart = dot(gFC_ShadowStartDist, one);
+		const float zEnd = dot(float4(gFC_ShadowStartDist.yzw, 0.0f), one);
+		const float band = max((zEnd - zStart) * DSRLE_SHADOW_SOFT_XFADE, 1e-4f);
+		const float t = (slice < 3) ? saturate((viewZ - (zEnd - band)) / band) : 0.0f;
+		[branch] if (t > 0.0f)
+		{
+			const int next = min(slice + 1, 3);
+			pcf = lerp(pcf, dsrle_ss_Lookup(mul(wp, gFC_ShadowMapMtxArray[next]), gFC_ShadowMapClamp[next], ax, ay, margin), t);
+		}
 #endif
+	}
 	return dsrle_ss_Rate(pcf, N, eyeVec);
 }
 
@@ -915,7 +928,9 @@ float3 dsrle_ss_Single(float4 posLight, float rot, float3 N, float4 eyeVec)
 {
 	float2 ax, ay, margin;
 	dsrle_ss_Basis(rot, ax, ay, margin);
-	return dsrle_ss_Rate(dsrle_ss_Lookup(posLight, gFC_ShadowMapClamp[0], ax, ay, margin), N, eyeVec);
+	float pcf = 0.0f;
+	[branch] if (dsrle_ss_Matters(N, eyeVec)) pcf = dsrle_ss_Lookup(posLight, gFC_ShadowMapClamp[0], ax, ay, margin);
+	return dsrle_ss_Rate(pcf, N, eyeVec);
 }
 
 // In.VtxLit for the Sdw variants only (WITH_ShadowMap: 1 = CalcLispPos_VS, 2 = _PS / _PS_Csd,

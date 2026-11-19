@@ -167,10 +167,19 @@ foreach ($p in $plan) {
         Copy-Item -LiteralPath $p.src $default -Force
         if ((Get-Sha $default) -ne $f.sha256) { throw "copy failed for $DsrleIniDefault" }
         $state[$DsrleIniDefault] = New-Entry $DsrleIniDefault "" $false $f.sha256 "installed"
-        if ($p.cur) {
-            # installed_sha256 stays what DSRLE last wrote to this file, or "" if it never did: a later version can tell an edited file.
-            $state[$f.path] = New-Entry $f.path "" $false $state[$f.path].installed_sha256 "installed"
-            if ($p.cur -ne $f.sha256) { Write-Output "kept        $($f.path) (your settings; the new defaults are in dsrle.ini.default)" }
+        $last = if ($state[$f.path]) { $state[$f.path].installed_sha256 } else { "" }
+        if ($p.cur -and $p.cur -ne $f.sha256 -and $last -and $p.cur -eq $last) {
+            # Still exactly what the version before wrote, so nothing of the user's is in it and it takes the new defaults.
+            Copy-Item -LiteralPath $p.src $p.dst -Force
+            if ((Get-Sha $p.dst) -ne $f.sha256) { throw "copy failed for $($f.path); run uninstall.ps1 to restore." }
+            $state[$f.path] = New-Entry $f.path "" $false $f.sha256 "installed"
+            Write-Output "updated     $($f.path) (it still held the last version's settings, unchanged)"
+        } elseif ($p.cur) {
+            # installed_sha256 stays what DSRLE last wrote to this file, or "" if it never did: a later version can tell an
+            # edited file. A file that is this version's settings to the byte counts as written by it.
+            $mine = if ($p.cur -eq $f.sha256) { $f.sha256 } else { $last }
+            $state[$f.path] = New-Entry $f.path "" $false $mine "installed"
+            if ($p.cur -ne $f.sha256) { Write-Output "kept        $($f.path) (your settings; the new defaults are in dsrle.ini.default, and a setting your file does not have takes its built-in default)" }
             else { Write-Output "up to date  $($f.path)" }
         } else {
             Copy-Item -LiteralPath $p.src $p.dst -Force

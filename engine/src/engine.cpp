@@ -8,16 +8,20 @@
 #include "hlsl.h"
 #include "lightreach.h"
 #include "maps.h"
+#include "osd.h"
 #include "pack.h"
 #include "perf.h"
 #include "reflect.h"
 #include "pointshadow.h"
 #include "sunshadow.h"
 #include "ssgi.h"
+#include "version.h"
 #include "volumetrics.h"
+#include <dxgi.h>
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
+#include <cstdio>
 #include <cstring>
 #include <mutex>
 #include <utility>
@@ -71,6 +75,22 @@ bool g_pack;
 bool g_hide_ui;
 bool g_toggled_off;
 bool g_toggle_key_down;
+// Every pass of the engine hangs off the game's ambient occlusion dispatches: the shadow maps, GTAO, the bounce light
+// and the scene depth the rest read. With that option off in the game's settings they never come, and the engine's
+// shaders would light the world with no shadow or occlusion behind them. So after this many lit frames without one the
+// engine steps aside, as the comparison key does, until one comes.
+constexpr int kAnchorFrames = 120;
+std::atomic<bool> g_anchor_seen{false};
+std::atomic<bool> g_lit_seen{false};  // a hemisphere-lit draw this frame: the world is on screen
+int g_anchor_missing;
+bool g_anchor_lost;
+bool g_no_anchor;  // dev.no_anchor: every dispatch of the game's pass is left alone, as if it never came
+// Whether the engine's AO pass wrote the AO texture the last time the game's pass came up. When it could not, the
+// game's own ran, and that leaves its one value in the channels the contact shadow and the lean are read from.
+std::atomic<bool> g_gtao_live{false};
+// The game's settings menu calls its SSAO pass Ambient Occlusion.
+const char kNeedsSsao[] = "LIGHTING ENGINE OFF: TURN ON AMBIENT OCCLUSION IN THE SETTINGS";
+static_assert(sizeof(kNeedsSsao) - 1 <= 64);  // what a notice holds
 float g_strength[4];
 float g_fill[4];
 float g_light[4];
@@ -87,6 +107,10 @@ std::atomic<float> g_key_peak{0.0f};
 float g_key_next[3];
 float g_key_current[3];
 ForwardConstants g_forward;
+// The sun direction most of last frame's draws carried. Pieces of two archives in one view carry two, and the first draw's
+// is not always the one most of the view is lit from. Under g_forward_lock.
+bool g_sun_known;
+float g_sun_direction[3];
 
 std::atomic<bool> g_want_camera{true};
 std::atomic<bool> g_taa_fresh{false};  // the TAA pass ran last frame; with anti-aliasing off nothing publishes the camera
@@ -139,7 +163,8 @@ void read_pack_values() {
 }
 
 void read_settings() {
-    g_enabled = cfg_bool("engine.enabled", true) && !g_toggled_off;
+    g_enabled = cfg_bool("engine.enabled", true) && !g_toggled_off && !g_anchor_lost;
+    g_no_anchor = cfg_bool("dev.no_anchor", false);
     g_gtao = g_enabled && cfg_bool("gtao.enabled", true);
     g_composite = g_enabled && cfg_bool("composite.enabled", true);
     g_pack = g_enabled && cfg_bool("lighting.enabled", true);
@@ -155,9 +180,34 @@ void read_settings() {
 
 }  // namespace
 
+// The level [engine] quality = 0 stands for. At the high level the shadow maps alone take 640 MB.
+static int adapter_quality(ID3D11Device* device) {
+    IDXGIDevice* dxgi = nullptr;
+    IDXGIAdapter* adapter = nullptr;
+    DXGI_ADAPTER_DESC d{};
+    if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&dxgi)))) {
+        dxgi->GetAdapter(&adapter);
+        dxgi->Release();
+    }
+    const bool known = adapter && SUCCEEDED(adapter->GetDesc(&d));
+    if (adapter) adapter->Release();
+    if (!known) {
+        logf("adapter: not known");
+        return 3;
+    }
+    char name[128] = {};
+    WideCharToMultiByte(CP_UTF8, 0, d.Description, -1, name, sizeof(name) - 1, nullptr, nullptr);
+    const unsigned megabytes = static_cast<unsigned>(d.DedicatedVideoMemory >> 20);
+    logf("adapter: %s, %u MB", name, megabytes);
+    return megabytes < 3000 ? 1 : megabytes < 5000 ? 2 : 3;
+}
+
 void engine_init(ID3D11Device* device) {
     g_device = device;
+    logf("DSR Lighting Engine %s", DSRLE_VERSION);
+    config_set_auto_quality(adapter_quality(device));
     config_load();
+    osd_init(device);
     maps_init();
     sunshadow_init(device);
     casters_init(device);
@@ -191,6 +241,12 @@ void engine_init(ID3D11Device* device) {
     const D3D11_SUBRESOURCE_DATA init{&zero, 0, 0};
     device->CreateBuffer(&b, &init, &g_pack_cb);
     logf("engine: enabled=%d gtao=%d composite=%d lighting=%d", g_enabled, g_gtao, g_composite, g_pack);
+    static const char* const kQuality[] = {"", "  QUALITY LOW", "  QUALITY MEDIUM", ""};
+    const bool on = cfg_bool("engine.enabled", true);
+    char notice[65];
+    snprintf(notice, sizeof(notice), "DSR LIGHTING ENGINE %s%s%s", DSRLE_VERSION, on ? kQuality[config_quality()] : "",
+             on ? "  F10 COMPARES" : "  OFF IN DSRLE.INI");
+    osd_show(notice, 8.0f);
 }
 
 // The comparison key: the whole engine flips on and off live, only while the game has focus.
@@ -207,6 +263,15 @@ static void poll_toggle_key() {
     g_toggled_off = !g_toggled_off;
     read_settings();
     logf("engine: toggled %s", g_toggled_off ? "off" : "on");
+    if (g_toggled_off) {
+        osd_show("LIGHTING ENGINE OFF", 2.0f);
+    } else if (!cfg_bool("engine.enabled", true)) {
+        osd_show("LIGHTING ENGINE OFF IN DSRLE.INI", 4.0f);
+    } else if (g_anchor_lost) {
+        osd_show(kNeedsSsao, 10.0f);
+    } else {
+        osd_show("LIGHTING ENGINE ON", 2.0f);
+    }
 }
 
 void engine_on_present(ID3D11DeviceContext* immediate) {
@@ -225,7 +290,33 @@ void engine_on_present(ID3D11DeviceContext* immediate) {
     memcpy(frame.camera, camera, sizeof(frame.camera));
     const bool reloaded = config_poll();
     const bool changed = maps_on_present(frame, reloaded);
-    if (reloaded) {
+    {
+        float sun[3];
+        const bool known = maps_sun_direction(sun);
+        std::lock_guard<std::mutex> lock(g_forward_lock);
+        g_sun_known = known;
+        if (known) memcpy(g_sun_direction, sun, sizeof(sun));
+    }
+    const bool lit = g_lit_seen.exchange(false, std::memory_order_relaxed);
+    if (g_anchor_seen.exchange(false, std::memory_order_relaxed)) {
+        g_anchor_missing = 0;
+    } else if (lit && g_anchor_missing < kAnchorFrames) {
+        g_anchor_missing++;
+    }
+    const bool lost = g_anchor_missing >= kAnchorFrames;
+    const bool anchor_changed = lost != g_anchor_lost;
+    if (anchor_changed) {
+        g_anchor_lost = lost;
+        if (lost) {
+            logf("engine: no ambient occlusion pass from the game in %d lit frames, so the engine is off until one comes. It needs Ambient Occlusion on in the game's settings", kAnchorFrames);
+            if (cfg_bool("engine.enabled", true) && !g_toggled_off) osd_show(kNeedsSsao, 10.0f);
+        } else {
+            logf("engine: the game's ambient occlusion pass is back, and so is the engine");
+            // In place of the warning, if it is still up.
+            if (cfg_bool("engine.enabled", true) && !g_toggled_off) osd_show("LIGHTING ENGINE ON", 2.0f);
+        }
+    }
+    if (reloaded || anchor_changed) {
         read_settings();
     } else if (changed) {
         read_pack_values();
@@ -259,6 +350,8 @@ bool engine_enabled() {
 bool engine_on_dispatch(ID3D11DeviceContext* ctx, Role role, UINT, UINT, UINT, const ViewConstants& view, CasterList& casters) {
     switch (role) {
     case Role::SsaoPrepare: {
+        if (g_no_anchor) return false;
+        g_anchor_seen.store(true, std::memory_order_relaxed);
         // Ahead of the shadow passes, which use the list up.
         if (g_ssgi) ssgi_note_casters(casters);
         ID3D11ShaderResourceView* depth = nullptr;
@@ -312,9 +405,12 @@ bool engine_on_dispatch(ID3D11DeviceContext* ctx, Role role, UINT, UINT, UINT, c
     }
     case Role::SsaoRender:
     case Role::SsaoBlendOut:
-        return g_gtao;
-    case Role::SsaoBlurUpsample:
-        return g_gtao && gtao_run(ctx, view);
+        return g_gtao && !g_no_anchor && gtao_usable(view);
+    case Role::SsaoBlurUpsample: {
+        const bool ran = g_gtao && !g_no_anchor && gtao_usable(view) && gtao_run(ctx, view);
+        g_gtao_live.store(ran, std::memory_order_relaxed);
+        return ran;
+    }
     default:
         return false;
     }
@@ -337,6 +433,8 @@ void engine_on_execute(ID3D11DeviceContext* immediate, ID3D11CommandList* list) 
     // that bound them while recording could read last frame's against this frame's atlas.
     PackConstants c{};
     memcpy(c.strength, g_strength, sizeof(c.strength));
+    const bool gtao_live = g_gtao_live.load(std::memory_order_relaxed);
+    if (!gtao_live) c.strength[1] = 0.0f;
     const SunShadowConstants sun = sunshadow_constants();
     memcpy(c.split, sun.split, sizeof(c.split));
     memcpy(c.uvz, sun.uvz, sizeof(c.uvz));
@@ -347,6 +445,7 @@ void engine_on_execute(ID3D11DeviceContext* immediate, ID3D11CommandList* list) 
     memcpy(c.film, g_film, sizeof(c.film));
     memcpy(c.black, g_black, sizeof(c.black));
     memcpy(c.ambient, g_ambient, sizeof(c.ambient));
+    if (!gtao_live) c.ambient[0] = 0.0f;
     static PackConstants last;
     static bool have_last;
     if (have_last && memcmp(&c, &last, sizeof(c)) == 0) return;
@@ -371,6 +470,10 @@ void engine_bind_draw_kind(ID3D11DeviceContext* ctx, bool foliage) {
     ctx->PSSetConstantBuffers(6, 1, &g_draw_kind[foliage ? 1 : 0]);
 }
 
+void engine_note_lit_draw() {
+    if (!g_lit_seen.load(std::memory_order_relaxed)) g_lit_seen.store(true, std::memory_order_relaxed);
+}
+
 bool engine_wants_forward_constants() {
     return g_want_forward.load(std::memory_order_relaxed);
 }
@@ -381,6 +484,7 @@ void engine_publish_forward_constants(const void* regs) {
     // The want clears with the copy, under the lock: the present takes a block as this frame's only once it is all there.
     if (!g_want_forward.load(std::memory_order_relaxed)) return;
     memcpy(g_forward.regs, regs, sizeof(g_forward.regs));
+    if (g_sun_known) memcpy(g_forward.regs[73], g_sun_direction, sizeof(g_sun_direction));
     g_forward.valid = true;
     g_want_forward.store(false, std::memory_order_relaxed);
 }
@@ -426,6 +530,22 @@ bool engine_wants_volumetrics_inputs() {
     return g_volumetrics && g_want_vol_inputs.load(std::memory_order_relaxed);
 }
 
+// The game's three clustered-light buffers, one of each. A forward shader with no point lights of its own may be drawn
+// with something else left in those slots.
+static bool light_buffers(ID3D11ShaderResourceView* const lights[3]) {
+    int seen = 0;
+    for (int i = 0; i < 3; i++) {
+        if (!lights[i]) return false;
+        ID3D11Resource* res = nullptr;
+        lights[i]->GetResource(&res);
+        const int kind = res ? pointshadow_upload_kind(res) : 0;
+        if (res) res->Release();
+        if (kind < 1 || kind > 3) return false;
+        seen |= 1 << kind;
+    }
+    return seen == 0b1110;
+}
+
 void engine_offer_volumetrics_inputs(ID3D11DeviceContext* ctx) {
     ID3D11RenderTargetView* rtv = nullptr;
     ID3D11DepthStencilView* dsv = nullptr;
@@ -441,7 +561,7 @@ void engine_offer_volumetrics_inputs(ID3D11DeviceContext* ctx) {
     if (dsv) dsv->Release();
     ID3D11ShaderResourceView* lights[3] = {};
     if (scene) ctx->PSGetShaderResources(16, 3, lights);
-    if (scene && lights[0] && lights[1] && lights[2] && g_want_vol_inputs.exchange(false, std::memory_order_relaxed)) {
+    if (scene && light_buffers(lights) && g_want_vol_inputs.exchange(false, std::memory_order_relaxed)) {
         ID3D11ShaderResourceView* atlas = nullptr;
         ctx->PSGetShaderResources(7, 1, &atlas);
         volumetrics_note_shadow_atlas(atlas);

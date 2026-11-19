@@ -26,6 +26,9 @@ UINT hdr_present_flags(IDXGISwapChain* swapchain, UINT sync, UINT flags);
 ID3D11RenderTargetView* hdr_before_present(IDXGISwapChain* swapchain, ID3D11DeviceContext* immediate);
 void hdr_after_present(ID3D11DeviceContext* immediate, ID3D11RenderTargetView* target);
 
+// For a notice drawn on the back buffer. False for the game's own 8-bit one; true for scRGB, where *white is paper white.
+bool hdr_notice_white(IDXGISwapChain* swapchain, float* white);
+
 // The game asks for 8-bit views of its back buffer, which fail on a float one. Returns the desc to create the view with.
 const D3D11_RENDER_TARGET_VIEW_DESC* hdr_fix_view_desc(ID3D11Resource* res, const D3D11_RENDER_TARGET_VIEW_DESC* desc, D3D11_RENDER_TARGET_VIEW_DESC* storage);
 const D3D11_SHADER_RESOURCE_VIEW_DESC* hdr_fix_view_desc(ID3D11Resource* res, const D3D11_SHADER_RESOURCE_VIEW_DESC* desc, D3D11_SHADER_RESOURCE_VIEW_DESC* storage);

@@ -3,7 +3,9 @@
 #include "common.h"
 #include "context.h"
 #include "engine.h"
+#include "config.h"
 #include "hdr.h"
+#include "osd.h"
 #include "pack.h"
 #include "perf.h"
 #include "shaderdb.h"
@@ -118,7 +120,13 @@ using Present_fn = HRESULT(STDMETHODCALLTYPE*)(IDXGISwapChain*, UINT, UINT);
 Present_fn o_Present;
 HRESULT STDMETHODCALLTYPE h_Present(IDXGISwapChain* self, UINT sync, UINT flags) {
     trace_before_present(self, g_immediate_real);
-    trace_shot_poll(self, g_immediate_real, g_device);
+    // A shot is the frame without the notice, unless the notice is what is being looked at.
+    const bool notice_in_shots = cfg_bool("dev.notice_in_shots", false);
+    if (!notice_in_shots) trace_shot_poll(self, g_immediate_real, g_device);
+    float white = 1.0f;
+    const bool linear = hdr_notice_white(self, &white);
+    osd_draw(self, g_immediate_real, white, linear);
+    if (notice_in_shots) trace_shot_poll(self, g_immediate_real, g_device);
     perf_before_present(g_immediate_real);
     ID3D11RenderTargetView* hdr_target = hdr_before_present(self, g_immediate_real);
     HRESULT hr = o_Present(self, sync, hdr_present_flags(self, sync, flags));

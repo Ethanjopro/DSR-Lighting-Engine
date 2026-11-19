@@ -411,6 +411,13 @@ ID3D11RenderTargetView* hdr_before_present(IDXGISwapChain* swapchain, ID3D11Devi
     return target;
 }
 
+bool hdr_notice_white(IDXGISwapChain* swapchain, float* white) {
+    if (!g_active.load(std::memory_order_relaxed) || swapchain != g_swapchain) return false;
+    const bool hdr = g_display_is_hdr.load(std::memory_order_relaxed);
+    *white = (hdr ? std::max(cfg_float("hdr.paper_white", 200.0f), 1.0f) : kScRgbNits) / kScRgbNits;
+    return true;
+}
+
 void hdr_after_present(ID3D11DeviceContext* immediate, ID3D11RenderTargetView* target) {
     if (!target) return;
     immediate->OMSetRenderTargets(1, &target, nullptr);

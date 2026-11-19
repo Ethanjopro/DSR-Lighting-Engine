@@ -18,6 +18,9 @@ A lighting engine for Dark Souls Remastered (PC, DX11), in the manner of the DS2
 - **Per-map settings**: a few settings take their own values in four maps (`engine/data/maps.ini`). The engine tells the maps apart from the sun direction and light rows that the forward draws carry, matched against a table that `tools/maps_table.py --emit` builds from the shipped DrawParam (`engine/src/maps.cpp`, rules in `spec/maps.toml`). Unknown or shared views keep the global values.
 - From 1.0: the per-area DrawParam retune (`spec/areas/*.toml`), a real-time sun on non-lightmapped draws, soft shadow filtering, specular occlusion, smoother point-light falloff, and a sharper TAA resolve.
 
+- **Quality levels and safe fallbacks**: `[engine] quality` caps the costly settings by level, picked from the adapter's video memory when 0 (`engine/src/config.cpp`). The shipped `dsrle.ini` is compiled into the DLL as the defaults, so a partial or missing file works. With the game's Ambient Occlusion setting off the engine has no place to run and steps aside; when its own AO cannot run the game's SSAO is let through (`engine/src/engine.cpp`).
+- **Notices**: a few seconds of text on the back buffer for the version, F10 and a forced turn-off (`engine/src/osd.cpp`).
+
 F10 flips the whole engine on and off in game; `dsrle\dsrle.ini` reloads live.
 
 ## What the install changes
@@ -35,8 +38,9 @@ It leaves GameParam, map layout, events, saves, the executable and the game's sh
 .\engine\build.ps1                                                             # engine/bin/d3d11.dll
 .venv\Scripts\python.exe tools\build_v4.py --out dist\_v4\sun                  # the 2.0 DrawParam: 1.0 specs plus the sun table
 .venv\Scripts\python.exe tools\maps_table.py --emit engine\data\maps_detect.txt --dp dist\_v4\sun   # refuses on any leak
-.venv\Scripts\python.exe tools\package.py --dp dist\_v4\sun --version 2.0.0-beta7
+.venv\Scripts\python.exe tools\package.py --dp dist\_v4\sun --version 2.0.0-beta8
 ```
+The version is `DSRLE_VERSION` in `engine/src/version.h`; `package.py` refuses another one, and refuses a `dsrle.ini` newer than the DLL that has it built in.
 `engine/data/maps_detect.txt` is derived from the DrawParam, so it is git-ignored and must be emitted from the same build that is packaged; `package.py` checks the hashes.
 The shader builds need the git-ignored `vanilla_src/` tree, which is recovered locally from the game's own files.
 

@@ -62,6 +62,8 @@ void engine_bind_pack(ID3D11DeviceContext* ctx);
 void engine_bind_composite(ID3D11DeviceContext* ctx);
 // Tells the pack's shaders whether the mesh about to draw is foliage.
 void engine_bind_draw_kind(ID3D11DeviceContext* ctx, bool foliage);
+// Every hemisphere-lit draw, whatever its target.
+void engine_note_lit_draw();
 // Forward draws offer their constants; the first offer each frame is kept. The wants check is cheap.
 bool engine_wants_forward_constants();
 void engine_publish_forward_constants(const void* regs);

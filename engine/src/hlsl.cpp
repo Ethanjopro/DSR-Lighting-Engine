@@ -115,6 +115,7 @@ T* get_shader(const char* file, const char* entry, const char* target, const std
     if (code) {
         create(code, &shader);
         code->Release();
+        if (!shader) logf("hlsl: %s %s compiled, but the device would not take it", file, entry);
     }
     // Failures are cached too: retrying a broken shader every frame would stall the game.
     g_cache[key] = shader;

@@ -47,6 +47,8 @@ bool create_resources(UINT size) {
     drop(g_atlas);
     drop(g_dsv);
     drop(g_srv);
+    // Until the new atlas is whole: a size that fails must not pass for the one before it.
+    g_ready = false;
     D3D11_TEXTURE2D_DESC d{};
     d.Width = d.Height = size;
     d.MipLevels = 1;
@@ -175,7 +177,8 @@ void caster_list_release(CasterList& list) {
 }
 
 void sunshadow_render(ID3D11DeviceContext* ctx, const ViewConstants& view, const float sun_travel[3], const float camera[3]) {
-    const UINT cascade_size = static_cast<UINT>(cfg_int("sunshadow.cascade_size", 4096));
+    // The atlas is 2 x 2 cascades, and 16384 is as large as a texture gets.
+    const UINT cascade_size = static_cast<UINT>(std::clamp(cfg_int("sunshadow.cascade_size", 4096), 256, 8192));
     if (!view.valid || !create_resources(cascade_size * 2)) return;
     const float* m = view.vp;
     const float p00 = std::sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]);

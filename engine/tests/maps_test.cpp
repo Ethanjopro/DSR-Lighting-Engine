@@ -688,6 +688,41 @@ const MapsBlendKey* key_of(const MapsBlend& b, const char* key) {
     return nullptr;
 }
 
+// A quality level only ever makes a setting lighter, whether the file has the setting or not.
+void test_quality() {
+    const std::string settings = std::string(kIniBase) +
+        "[sunshadow]\ncascade_size = 4096\r\n[pointshadow]\nface_size = 256\nmax_lights = 8\n"
+        "[ssgi]\nenabled = 1\ndownscale = 2\n[gtao]\nslices = 4\nsteps = 3\n[reflect]\nenabled = 1\nsteps = 64";  // no last newline
+    struct Want {
+        const char* quality;
+        int level, cascade, face, lights, ssgi, downscale, slices, steps, reflect, reflect_steps;
+    };
+    config_set_auto_quality(2);
+    for (const Want& w : {Want{"3", 3, 4096, 256, 8, 1, 2, 4, 3, 1, 64}, Want{"2", 2, 2048, 256, 8, 1, 4, 3, 3, 1, 48},
+                          Want{"1", 1, 2048, 256, 4, 0, 4, 2, 3, 0, 32}, Want{"0", 2, 2048, 256, 8, 1, 4, 3, 3, 1, 48},
+                          Want{"7", 2, 2048, 256, 8, 1, 4, 3, 3, 1, 48}}) {
+        write_text(data_dir() + L"dsrle.ini", settings + "\n[engine]\nquality = " + w.quality);
+        config_load();
+        CHECK(config_quality() == w.level);
+        CHECK(cfg_int("sunshadow.cascade_size", -1) == w.cascade && cfg_int("pointshadow.face_size", -1) == w.face);
+        CHECK(cfg_int("pointshadow.max_lights", -1) == w.lights && cfg_int("ssgi.enabled", -1) == w.ssgi);
+        CHECK(cfg_int("ssgi.downscale", -1) == w.downscale && cfg_int("gtao.slices", -1) == w.slices && cfg_int("gtao.steps", -1) == w.steps);
+        CHECK(cfg_int("reflect.enabled", -1) == w.reflect && cfg_int("reflect.steps", -1) == w.reflect_steps);
+        CHECK(same(cfg_float("lighting.point_gain", 0.0f), 1.6f));
+    }
+    // A setting the file leaves out is limited too, and one no level limits stays out.
+    write_text(data_dir() + L"dsrle.ini", "[engine]\nquality = 1\n");
+    config_load();
+    CHECK(cfg_int("pointshadow.max_lights", -1) == 4 && cfg_int("sunshadow.cascade_size", -1) == 2048 && cfg_int("lighting.enabled", -1) == -1);
+    config_set_auto_quality(3);
+    write_text(data_dir() + L"dsrle.ini", "");
+    config_load();
+    CHECK(config_quality() == 3 && cfg_int("pointshadow.max_lights", -1) == -1);
+    // What the tests after this one start from.
+    write_text(data_dir() + L"dsrle.ini", ini(1, 1, "0"));
+    config_load();
+}
+
 void test_blend() {
     MapsBlend b;
     maps_blend_set_keys(b, config_map_keys());
@@ -1026,6 +1061,7 @@ int wmain(int argc, wchar_t** argv) {
     test_c73_tally(t);
     test_shader_names();
     test_config();
+    test_quality();
     test_blend();
     test_glue(t);
     printf("%d checks, %d failed\n", g_checks, g_failed);

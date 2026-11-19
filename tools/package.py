@@ -191,6 +191,12 @@ def main() -> None:
     dll = ROOT / "engine" / "bin" / "d3d11.dll"
     data_dir = ROOT / "engine" / "data"
     require_newer(dll, ROOT / "engine" / "src", "run engine/build.ps1")
+    # The DLL names its version in the log and on screen, and holds dsrle.ini as its built-in defaults.
+    named = re.search(r'#define DSRLE_VERSION "([^"]+)"', read(ROOT / "engine" / "src" / "version.h").decode("utf-8"))
+    if not named or named.group(1) != args.version:
+        fail(f"engine/src/version.h says {named.group(1) if named else 'nothing'}, not {args.version}; change it and run engine/build.ps1")
+    if (data_dir / "dsrle.ini").stat().st_mtime > dll.stat().st_mtime:
+        fail("engine/data/dsrle.ini is newer than d3d11.dll, which has the older one built in; run engine/build.ps1")
     require_newer(data_dir / "shaders.pak", ROOT / "shaders" / "features", "run shaders/tools/build_pack.py")
     if not (data_dir / "maps_detect.txt").is_file():
         fail(f"missing input: {data_dir / 'maps_detect.txt'}; run {EMIT} {args.dp}")

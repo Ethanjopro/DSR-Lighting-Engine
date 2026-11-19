@@ -7,6 +7,8 @@ DSR Lighting Engine replaces how Dark Souls: Remastered lights its world, in the
 Engine: a real sun with cast shadows, torches and fires that light rooms and throw moving shadows, light
 in the air, reflections and bounce light. Each area keeps its palette and mood. The lighting itself is
 reimagined, so this is a large change on purpose. Press F10 in game to compare with the plain game.
+When the game starts, a line at the top of the screen names the version for a few seconds.
+The game's Ambient Occlusion setting must be on; see Compatibility.
 
 What it changes
 ---------------
@@ -77,8 +79,23 @@ HDR highlights need the game's anti-aliasing set to TAA or off. With FXAA the im
 paper white, and dsrle\dsrle.log says so.
 
 Single features turn off with enabled = 0 under [pointshadow], [lightreach], [reflect], [ssgi],
-[volumetrics], [bloom], [sunshadow] or [hdr]. On a slower GPU, start with [pointshadow] face_size = 512 and
-max_lights = 4, and [ssgi] downscale = 4.
+[volumetrics], [bloom], [sunshadow] or [hdr].
+
+Quality, for a slower GPU or one with little video memory:
+  [engine]
+  quality = 0   ; 0 = picked from the video memory: under 3 GB low, under 5 GB medium, otherwise high
+                ; 1 = low, 2 = medium, 3 = high
+High uses every setting as written. Medium halves the sun and torch shadow maps in each direction, runs
+a lighter ambient occlusion, shorter reflection rays and bounce light at a quarter of the screen's size.
+Low also drops reflections and bounce light, and shadows 4 lights in place of 8 with fewer objects.
+The two lower levels are limits: a setting of yours that is already lighter stays. dsrle\dsrle.log
+names the graphics card, its video memory and the level in use, and the line at the start names a level
+below high.
+
+The lines at the top of the screen (the version at the start, F10's off and on, and a warning when the
+engine has to turn itself off) go away with:
+  [engine]
+  notices = 0
 
 Per-map settings
 ----------------
@@ -156,8 +173,10 @@ The installer refuses to run while the game is running. It stops without changin
 
 Updating from DSR Lighting Engine 1.0: just run install.bat. 1.0 replaced the shader archives, so the
 installer puts the vanilla ones back from 1.0's backup and says so.
-Reinstalling or updating keeps your dsrle\dsrle.ini. The new version's defaults are written beside it
-as dsrle.ini.default; settings the new version adds use their built-in default until you add them.
+Reinstalling or updating replaces dsrle\dsrle.ini with the new version's if you never changed it. If
+you did, your file is kept and the new version's is written beside it as dsrle.ini.default. Either way a
+setting that is not in your file uses this version's default, which is built into d3d11.dll, so a
+dsrle.ini can be just the lines you changed.
 dsrle\maps.ini is always replaced, so keep your own per-map values in dsrle.ini.
 
 Uninstall
@@ -196,6 +215,10 @@ Compatibility
   this mod is updated. Nothing breaks: those shaders simply stay vanilla. Native HDR also depends on a
   shader in the game's executable. If an update changes it the image looks washed out and dsrle\dsrle.log
   says so; set [hdr] enabled = 0 until this mod is updated.
+* Ambient Occlusion must be on in the game's own settings: the engine's passes run where the game's
+  ambient occlusion does. With it off the engine turns itself off after two seconds, says so at the top
+  of the screen and in dsrle\dsrle.log, and the game looks as it does without the mod until the setting
+  is turned back on.
 * The anti-aliasing improvements apply to the game's TAA pass (tested with anti-aliasing on). With
   anti-aliasing off they do nothing.
 * With native HDR on, overlays such as Steam's draw for an SDR screen and may look dim. If Windows HDR is
@@ -213,8 +236,11 @@ settings.
 Performance
 -----------
 On an RTX 5090 at 3840x2160 the engine took about 4 ms of GPU time per frame on average across all
-bonfires, staying at the game's 60 fps cap. By its buffer sizes it uses roughly 1 GB of video memory. No slower GPU has been
-tested; see Adjusting it for what to turn down first.
+bonfires, staying at the game's 60 fps cap. By its buffer sizes it uses roughly 1 GB of video memory at
+the high quality level and about half that at the two lower ones. At five places the whole frame took
+1.3 ms of GPU time without the engine, 4.5 ms at high, 3.8 ms at medium and 2.7 ms at low.
+No slower GPU has been tested, and the two lower levels were only checked on that card. See Quality
+under Adjusting it.
 
 Credits
 -------
