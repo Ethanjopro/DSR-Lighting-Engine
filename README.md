@@ -30,11 +30,13 @@ F10 flips the whole engine on and off in game; `dsrle\dsrle.ini` reloads live.
 It leaves GameParam, map layout, events, saves, the executable and the game's shader archives alone. It patches no game code and evades nothing. Online safety is not claimed: play offline. What the DLL reads, writes and loads, and how to report a security problem, is in [SECURITY.md](SECURITY.md).
 
 ## What is not in this repository
-No game files, and nothing made from them. These are created on your own PC from your own copy of the game, and are git-ignored:
+No game files. These are created on your own PC from your own copy of the game, and are git-ignored:
 - `vanilla/` (pristine copies of the files the mod changes) and `vanilla_src/` (shader source recovered from the game's debug data, with the scripts that rebuild it).
 - `data/vanilla/`, `data/live_rows.json` and `data/row_names_ja.json`, which `tools/extract.py` writes, and `data/row_names_en.json`, a translation of the last.
 - `engine/data/shaders.pak` and `engine/data/maps_detect.txt`, which the build steps below make.
 - `saves/`, `captures/`, `dist/` and `release/build/`.
+
+What the repository does hold about the game is names, checksums and measurements: the game's shader file names with their checksums (`engine/data/shader_names.tsv`), hash lists of the vanilla files (`vanilla/manifest.sha256`, `data/frozen_shaders.json`, `data/tpup_baseline.sha256`), DrawParam row numbers with some of the game's row names quoted in `looks/` and `docs/`, and the measurement tables in `data/`.
 
 So the DLL builds from a clone as it is, while the DrawParam and shader-pack steps need those local folders first. The shader-pack build drives scripts kept in the ignored `vanilla_src/` tree and cannot be run from this repository alone.
 
