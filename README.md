@@ -27,7 +27,16 @@ F10 flips the whole engine on and off in game; `dsrle\dsrle.ini` reloads live.
 - Adds `d3d11.dll` and a `dsrle` folder to the game folder. **This is code running in the game process.**
 - Replaces `param/DrawParam/a10..a18_DrawParam.parambnd.dcx`, with backups.
 
-It leaves GameParam, map layout, events, saves, the executable and the game's shader archives alone. It patches no game code and evades nothing. Online safety is not claimed: play offline.
+It leaves GameParam, map layout, events, saves, the executable and the game's shader archives alone. It patches no game code and evades nothing. Online safety is not claimed: play offline. What the DLL reads, writes and loads, and how to report a security problem, is in [SECURITY.md](SECURITY.md).
+
+## What is not in this repository
+No game files, and nothing made from them. These are created on your own PC from your own copy of the game, and are git-ignored:
+- `vanilla/` (pristine copies of the files the mod changes) and `vanilla_src/` (shader source recovered from the game's debug data, with the scripts that rebuild it).
+- `data/vanilla/`, `data/live_rows.json` and `data/row_names_ja.json`, which `tools/extract.py` writes, and `data/row_names_en.json`, a translation of the last.
+- `engine/data/shaders.pak` and `engine/data/maps_detect.txt`, which the build steps below make.
+- `saves/`, `captures/`, `dist/` and `release/build/`.
+
+So the DLL builds from a clone as it is, while the DrawParam and shader-pack steps need those local folders first. The shader-pack build drives scripts kept in the ignored `vanilla_src/` tree and cannot be run from this repository alone.
 
 ## Building a release
 ```
@@ -54,7 +63,7 @@ The shader builds need the git-ignored `vanilla_src/` tree, which is recovered l
 | `looks/README.md`, `looks/G1..G5.md`, `looks/targets.json` | the look model and the per-bonfire targets |
 
 ## Testing tools
-- `tools/test_session.ps1` swaps the test save in, then restores and hash-checks the real save and removes the DLL. Everything below runs inside it.
+- `tools/test_session.ps1` swaps the test save in, then restores and hash-checks the real save and removes the DLL. Everything below runs inside it. It works from `saves/ledger.json`, a local record of the real save's hash and backup, and finds the save folder itself (`DSRLE_SAVE_DIR` overrides it).
 - `tools/engine_ab.ps1` compares settings variants in one game session (they reload live); `tools/engine_soak.ps1` warps through every bonfire with the engine on. Sessions run in SDR unless given `-Hdr`, because the swap chain is made when the game starts. HDR shots are scRGB: read them with `dds2png.shot_image` (the same 8-bit image an SDR shot holds) and `engine/tools/hdr_stats.py` (nits, and a map of the highlights).
 - When a run's state detection fails, its confirm presses can reach the game: one failed run kindled the Sen's bonfire in the test save, which changes that area's shots. Copies of the test save from before each session are in `saves/backup`.
 - `tools/maps_session.ps1` warps through the bonfires with per-map detection logging but not applying (`[maps] apply = 0`), and marks each arrival and turn in the log; `engine_ab.ps1` turns per-map values off in every variant unless given `-Maps`.
@@ -67,7 +76,7 @@ The shader builds need the git-ignored `vanilla_src/` tree, which is recovered l
 |---|---|
 | `vanilla/` | Pristine copies of the files we change. Only `manifest.sha256` is committed. |
 | `vanilla_src/` | Shader source recovered from the game's own debug data. Git-ignored and never distributed. |
-| `data/` | Vanilla tables, live-row maps and the measurements above. |
+| `data/` | The measurements above. The tables extracted from the game (`data/vanilla/`, `live_rows.json`, `row_names_*.json`) are git-ignored. |
 | `spec/` | The mod's lighting changes, written relative to vanilla, and the global rules (`spec/global.toml`). |
 | `looks/` | Per-area look bibles and numeric targets. |
 | `engine/` | The DLL: `src/` C++, `data/` what installs into `dsrle\`, `tools/` trace and build helpers, `tests/` standalone probes. |

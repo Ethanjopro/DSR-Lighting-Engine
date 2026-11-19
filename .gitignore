@@ -3,9 +3,10 @@ vanilla/**
 !vanilla/manifest.sha256
 vanilla_src/
 dist/
-saves/**
-!saves/ledger.json
 captures/
+
+# Saves and the record of them: personal, and every test session rewrites them
+saves/
 
 # Tooling
 .venv/
@@ -13,10 +14,15 @@ __pycache__/
 *.pyc
 tools/bin/
 
-# Extracted game values (regenerate with tools/extract.py)
+# Extracted from the game's own files (regenerate with tools/extract.py). row_names_en.json is the
+# translation of row_names_ja.json and is keyed by it.
 data/vanilla/
+data/live_rows.json
+data/row_names_ja.json
+data/row_names_en.json
 
-# Engine build output
+# Engine build output. shaders.pak is compiled from the recovered shader source and maps_detect.txt
+# is derived from the DrawParam files.
 engine/obj/
 engine/bin/
 engine/data/shaders.pak
@@ -24,3 +30,11 @@ engine/data/maps_detect.txt
 
 # Release builds (tools/package.py)
 release/build/
+
+# Local settings, editors and the OS
+.claude/
+.vs/
+.vscode/
+*.user
+Thumbs.db
+desktop.ini

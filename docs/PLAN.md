@@ -128,7 +128,7 @@ Shader features change the look, so they land **before** per-area tuning; otherw
   - The exposure jump at an area boundary ≤ the vanilla jump + 0.3 EV.
   - Look bibles state targets as numbers.
 
-## Repository (`this repository`, git, local/private)
+## Repository (git)
 - `vanilla/` holds the pristine archives + `manifest.sha256`. Binaries are ignored; the manifest is committed.
 - `vanilla_src/` (**ignored**) holds the SPDB-extracted HLSL and Filter disassembly.
 - `data/`

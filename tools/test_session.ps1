@@ -9,7 +9,7 @@ $root = Split-Path -Parent $PSScriptRoot
 Import-Module "$root\tools\dsr.psm1" -Force
 Import-Module "$root\tools\gadget.psm1" -Force
 
-$live = Join-Path $env:USERPROFILE "Documents\NBGI\DARK SOULS REMASTERED\<Steam account folder>\DRAKS0005.sl2"
+$live = Get-DsrLiveSave
 $test = Join-Path $root "saves\test_session_end.sl2"
 $ledger = Get-Content -Raw (Join-Path $root "saves\ledger.json") | ConvertFrom-Json
 $realSha = $ledger.original_save.sha256

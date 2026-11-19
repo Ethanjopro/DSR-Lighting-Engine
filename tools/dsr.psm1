@@ -3,8 +3,7 @@
 
 $script:Root = Split-Path -Parent $PSScriptRoot
 $script:GameDir = "C:\Program Files (x86)\Steam\steamapps\common\DARK SOULS REMASTERED"
-$script:SaveDir = Join-Path $env:USERPROFILE "Documents\NBGI\DARK SOULS REMASTERED\<Steam account folder>"
-$script:LiveSave = Join-Path $script:SaveDir "DRAKS0005.sl2"
+$script:SaveName = "DRAKS0005.sl2"
 $script:KeysIni = Join-Path $env:LOCALAPPDATA "FromSoftware\NBGI\DarkSouls\DarkSoulsKeys.ini"
 $script:Ledger = Join-Path $script:Root "saves\ledger.json"
 
@@ -36,10 +35,24 @@ function Test-DsrRunning { [bool](Get-Process -Name DarkSoulsRemastered -ErrorAc
 
 function Get-FileSha([string]$Path) { (Get-FileHash $Path -Algorithm SHA256).Hash.ToLower() }
 
+# The live save. Its folder is named after the Steam account, so it is found and not written here: DSRLE_SAVE_DIR if
+# set, else the one folder under Documents\NBGI\DARK SOULS REMASTERED that holds the save. With none or several it
+# stops, because every caller is about to read or replace that file.
+function Get-DsrLiveSave {
+    if ($env:DSRLE_SAVE_DIR) { return (Join-Path $env:DSRLE_SAVE_DIR $script:SaveName) }
+    $base = Join-Path $env:USERPROFILE "Documents\NBGI\DARK SOULS REMASTERED"
+    $found = @(Get-ChildItem -LiteralPath $base -Directory -ErrorAction SilentlyContinue |
+        Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName $script:SaveName) })
+    if ($found.Count -ne 1) {
+        throw "expected one folder with $($script:SaveName) under $base, found $($found.Count): set DSRLE_SAVE_DIR to the save's folder"
+    }
+    return (Join-Path $found[0].FullName $script:SaveName)
+}
+
 # Refuse to run unless the live save is the recorded original or a recorded snapshot.
 function Assert-DsrSaveKnown {
     $ledger = Get-Content -Raw $script:Ledger | ConvertFrom-Json
-    $live = Get-FileSha $script:LiveSave
+    $live = Get-FileSha (Get-DsrLiveSave)
     $known = @($ledger.original_save.sha256) + @($ledger.snapshots.PSObject.Properties | ForEach-Object { $_.Value.sha256 })
     if ($known -notcontains $live) {
         Write-Warning "Live save hash $live is not in the ledger (game played since last backup?)."
@@ -224,5 +237,5 @@ function Invoke-DsrCapture([string]$OutDir, [string]$Name, [int]$GapMs = 900) {
 }
 
 Export-ModuleMember -Function Get-DsrKeyMap, Test-DsrRunning, Assert-DsrSaveKnown, Start-Dsr, Get-DsrWindow,
-    Send-DsrKey, Get-DsrShot, Wait-DsrStable, Stop-DsrHard, Get-FileSha, Get-DsrState, Wait-DsrState,
+    Send-DsrKey, Get-DsrShot, Wait-DsrStable, Stop-DsrHard, Get-FileSha, Get-DsrLiveSave, Get-DsrState, Wait-DsrState,
     Enter-DsrGame, Exit-DsrToTitle, Close-DsrAtTitle, Invoke-DsrCapture, Wait-DsrWarp
